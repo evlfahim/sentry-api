@@ -104,7 +104,9 @@ export default function Sidebar({
               <button
                 onClick={() =>
                   onSelectCollection(
-                    selectedCollectionId === collection.id ? null : collection.id
+                    selectedCollectionId === collection.id
+                      ? null
+                      : collection.id,
                   )
                 }
                 className="w-full text-left px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
@@ -186,14 +188,22 @@ export default function Sidebar({
                     : "text-gray-600 dark:text-gray-400"
                 }`}
               >
-                <span className={`w-12 shrink-0 text-right font-mono text-[10px] ${methodColor(entry.request.method)}`}>
+                <span
+                  className={`w-12 shrink-0 text-right font-mono text-[10px] ${methodColor(entry.request.method)}`}
+                >
                   {entry.request.method}
                 </span>
-                <span className="truncate flex-1 font-mono text-[11px]">{entry.request.url}</span>
-                <span className={`shrink-0 font-mono text-[10px] ${statusColor(entry.response.status)}`}>
+                <span className="truncate flex-1 font-mono text-[11px]">
+                  {entry.request.url}
+                </span>
+                <span
+                  className={`shrink-0 font-mono text-[10px] ${statusColor(entry.response.status)}`}
+                >
                   {entry.response.status}
                 </span>
-                <span className="shrink-0 text-[10px] text-gray-400">{formatRelativeTime(entry.timestamp)}</span>
+                <span className="shrink-0 text-[10px] text-gray-400">
+                  {formatRelativeTime(entry.timestamp)}
+                </span>
               </button>
             ))
           )}

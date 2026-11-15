@@ -66,10 +66,10 @@ export function activate(context: vscode.ExtensionContext) {
         const folderPath = folderUri[0].fsPath;
         webviewManager?.setFolder(folderPath);
         vscode.window.showInformationMessage(
-          `Sentry API folder set to: ${folderPath}`
+          `Sentry API folder set to: ${folderPath}`,
         );
       }
-    }
+    },
   );
 
   const newRequestCmd = vscode.commands.registerCommand(
@@ -77,7 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -103,7 +103,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       await webviewManager.refreshCollections();
       vscode.window.showInformationMessage(`Request "${name}" created.`);
-    }
+    },
   );
 
   const sendRequestCmd = vscode.commands.registerCommand(
@@ -111,7 +111,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -131,7 +131,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       // Send the request via the webview bridge
       webviewManager.postMessage({ type: "send-request" });
-    }
+    },
   );
 
   /**
@@ -143,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
     async (request: RequestOptions) => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -165,7 +165,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       // Send the request via the webview bridge
       webviewManager.postMessage({ type: "send-request" });
-    }
+    },
   );
 
   const viewHistoryCmd = vscode.commands.registerCommand(
@@ -173,7 +173,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -184,7 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       historyPanel.show();
       historyPanel.setHistory(historyStore.entries);
-    }
+    },
   );
 
   const diffResponsesCmd = vscode.commands.registerCommand(
@@ -192,7 +192,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -200,7 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
       const history = historyStore.entries;
       if (history.length < 2) {
         vscode.window.showWarningMessage(
-          "At least 2 history entries are needed to diff responses."
+          "At least 2 history entries are needed to diff responses.",
         );
         return;
       }
@@ -225,14 +225,14 @@ export function activate(context: vscode.ExtensionContext) {
 
       if (first.index === second.index) {
         vscode.window.showWarningMessage(
-          "Please select two different requests."
+          "Please select two different requests.",
         );
         return;
       }
 
       const diffResult = diff(
         first.entry.response.data,
-        second.entry.response.data
+        second.entry.response.data,
       );
 
       if (!diffPanel) {
@@ -244,9 +244,9 @@ export function activate(context: vscode.ExtensionContext) {
         first.entry.response.data,
         second.entry.response.data,
         `#${first.index + 1} - ${first.entry.request.method} ${first.entry.request.url}`,
-        `#${second.index + 1} - ${second.entry.request.method} ${second.entry.request.url}`
+        `#${second.index + 1} - ${second.entry.request.method} ${second.entry.request.url}`,
       );
-    }
+    },
   );
 
   /**
@@ -258,16 +258,14 @@ export function activate(context: vscode.ExtensionContext) {
     async (currentResponse?: Response | ErrorResponse) => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
 
       const history = historyStore.entries;
       if (history.length < 1) {
-        vscode.window.showWarningMessage(
-          "No history entries to diff against."
-        );
+        vscode.window.showWarningMessage("No history entries to diff against.");
         return;
       }
 
@@ -281,7 +279,7 @@ export function activate(context: vscode.ExtensionContext) {
         // Only one history entry, diff current with the only entry
         if (currentData === undefined) {
           vscode.window.showWarningMessage(
-            "No response to diff. Send a request first."
+            "No response to diff. Send a request first.",
           );
           return;
         }
@@ -297,7 +295,7 @@ export function activate(context: vscode.ExtensionContext) {
           currentData,
           secondEntry.response.data,
           "Current Response",
-          `#${1} - ${secondEntry.request.method} ${secondEntry.request.url}`
+          `#${1} - ${secondEntry.request.method} ${secondEntry.request.url}`,
         );
         return;
       }
@@ -326,9 +324,9 @@ export function activate(context: vscode.ExtensionContext) {
         currentData,
         selected.entry.response.data,
         "Current Response",
-        `#${selected.index + 1} - ${selected.entry.request.method} ${selected.entry.request.url}`
+        `#${selected.index + 1} - ${selected.entry.request.method} ${selected.entry.request.url}`,
       );
-    }
+    },
   );
 
   const exportCurlCmd = vscode.commands.registerCommand(
@@ -336,7 +334,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -362,7 +360,7 @@ export function activate(context: vscode.ExtensionContext) {
               Object.entries(requestFile.headers).map(([k, v]) => [
                 k,
                 interpolate(v, envVars),
-              ])
+              ]),
             )
           : undefined,
         query: requestFile.query
@@ -370,7 +368,7 @@ export function activate(context: vscode.ExtensionContext) {
               Object.entries(requestFile.query).map(([k, v]) => [
                 k,
                 interpolate(String(v), envVars),
-              ])
+              ]),
             )
           : undefined,
         body: requestFile.body,
@@ -379,7 +377,7 @@ export function activate(context: vscode.ExtensionContext) {
       const curl = toCurl(options);
       await vscode.env.clipboard.writeText(curl);
       vscode.window.showInformationMessage("cURL command copied to clipboard.");
-    }
+    },
   );
 
   // ── Step 11: New commands that use VS Code file system APIs ────
@@ -393,7 +391,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -402,7 +400,9 @@ export function activate(context: vscode.ExtensionContext) {
       const collections = await fs.listCollections();
 
       if (collections.length === 0) {
-        vscode.window.showWarningMessage("No collections found in the selected folder.");
+        vscode.window.showWarningMessage(
+          "No collections found in the selected folder.",
+        );
         return;
       }
 
@@ -433,11 +433,11 @@ export function activate(context: vscode.ExtensionContext) {
             envFiles: [],
           });
           vscode.window.showInformationMessage(
-            `Opened collection "${selected.collection.name}" with ${selected.collection.requests.length} request(s).`
+            `Opened collection "${selected.collection.name}" with ${selected.collection.requests.length} request(s).`,
           );
         }
       }
-    }
+    },
   );
 
   /**
@@ -449,7 +449,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath || !webviewManager.currentRequest) {
         vscode.window.showErrorMessage(
-          "No request selected. Open a folder and select a request first."
+          "No request selected. Open a folder and select a request first.",
         );
         return;
       }
@@ -461,7 +461,7 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to save request: ${error}`);
       }
-    }
+    },
   );
 
   /**
@@ -472,7 +472,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -504,7 +504,7 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to create collection: ${error}`);
       }
-    }
+    },
   );
 
   /**
@@ -515,7 +515,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -531,11 +531,15 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         await fs.writeEnvFile(name, {});
         await webviewManager.refreshCollections();
-        vscode.window.showInformationMessage(`Environment file "${name}" created.`);
+        vscode.window.showInformationMessage(
+          `Environment file "${name}" created.`,
+        );
       } catch (error) {
-        vscode.window.showErrorMessage(`Failed to create environment file: ${error}`);
+        vscode.window.showErrorMessage(
+          `Failed to create environment file: ${error}`,
+        );
       }
-    }
+    },
   );
 
   /**
@@ -547,7 +551,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath || !webviewManager.currentRequest) {
         vscode.window.showErrorMessage(
-          "No request selected. Open a folder and select a request first."
+          "No request selected. Open a folder and select a request first.",
         );
         return;
       }
@@ -561,7 +565,7 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to open request file: ${error}`);
       }
-    }
+    },
   );
 
   /**
@@ -573,7 +577,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (!webviewManager?.folderPath) {
         vscode.window.showErrorMessage(
-          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+          "No API folder selected. Use 'Sentry API: Open API Folder' first.",
         );
         return;
       }
@@ -581,27 +585,35 @@ export function activate(context: vscode.ExtensionContext) {
       const folderUri = vscode.Uri.file(webviewManager.folderPath);
 
       const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(folderUri, "**/*.json")
+        new vscode.RelativePattern(folderUri, "**/*.json"),
       );
 
       watcher.onDidChange(async () => {
         await webviewManager?.refreshCollections();
-        vscode.window.showInformationMessage("Request files changed, refreshing...");
+        vscode.window.showInformationMessage(
+          "Request files changed, refreshing...",
+        );
       });
 
       watcher.onDidCreate(async () => {
         await webviewManager?.refreshCollections();
-        vscode.window.showInformationMessage("New request file detected, refreshing...");
+        vscode.window.showInformationMessage(
+          "New request file detected, refreshing...",
+        );
       });
 
       watcher.onDidDelete(async () => {
         await webviewManager?.refreshCollections();
-        vscode.window.showInformationMessage("Request file deleted, refreshing...");
+        vscode.window.showInformationMessage(
+          "Request file deleted, refreshing...",
+        );
       });
 
       context.subscriptions.push(watcher);
-      vscode.window.showInformationMessage("File watching enabled for API folder.");
-    }
+      vscode.window.showInformationMessage(
+        "File watching enabled for API folder.",
+      );
+    },
   );
 
   context.subscriptions.push(
@@ -618,7 +630,7 @@ export function activate(context: vscode.ExtensionContext) {
     createCollectionCmd,
     createEnvFileCmd,
     openRequestFileCmd,
-    watchFilesCmd
+    watchFilesCmd,
   );
 }
 

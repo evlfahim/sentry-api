@@ -21,10 +21,7 @@ export function readEnvFile(filePath: string): Environment {
 /**
  * Writes an Environment object to a .env file.
  */
-export function writeEnvFile(
-  filePath: string,
-  environment: Environment
-): void {
+export function writeEnvFile(filePath: string, environment: Environment): void {
   const lines: string[] = [];
 
   for (const [key, value] of Object.entries(environment.values)) {

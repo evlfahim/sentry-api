@@ -27,7 +27,7 @@ function compareValues(
   oldVal: unknown,
   newVal: unknown,
   path: string,
-  results: DiffResult[]
+  results: DiffResult[],
 ): void {
   // Both are the same reference or both are null/undefined
   if (oldVal === newVal) {
@@ -54,7 +54,12 @@ function compareValues(
     } else {
       const obj = newVal as Record<string, unknown>;
       for (const key of Object.keys(obj)) {
-        compareValues(undefined, obj[key], path ? `${path}.${key}` : key, results);
+        compareValues(
+          undefined,
+          obj[key],
+          path ? `${path}.${key}` : key,
+          results,
+        );
       }
     }
     return;
@@ -69,7 +74,12 @@ function compareValues(
     } else {
       const obj = oldVal as Record<string, unknown>;
       for (const key of Object.keys(obj)) {
-        compareValues(obj[key], undefined, path ? `${path}.${key}` : key, results);
+        compareValues(
+          obj[key],
+          undefined,
+          path ? `${path}.${key}` : key,
+          results,
+        );
       }
     }
     results.push({
@@ -101,10 +111,7 @@ function compareValues(
   ) {
     const oldObj = oldVal as Record<string, unknown>;
     const newObj = newVal as Record<string, unknown>;
-    const allKeys = new Set([
-      ...Object.keys(oldObj),
-      ...Object.keys(newObj),
-    ]);
+    const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
 
     for (const key of allKeys) {
       const oldItem = key in oldObj ? oldObj[key] : undefined;

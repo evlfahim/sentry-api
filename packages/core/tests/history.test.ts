@@ -52,23 +52,31 @@ describe("history", () => {
   it("should add entries in reverse chronological order", () => {
     const store = createHistoryStore();
 
-    addToHistory(store, { method: "GET", url: "https://api.example.com/1" }, {
-      status: 200,
-      statusText: "OK",
-      headers: {},
-      data: {},
-      duration: 100,
-      request: { method: "GET", url: "https://api.example.com/1" },
-    });
+    addToHistory(
+      store,
+      { method: "GET", url: "https://api.example.com/1" },
+      {
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        data: {},
+        duration: 100,
+        request: { method: "GET", url: "https://api.example.com/1" },
+      },
+    );
 
-    addToHistory(store, { method: "POST", url: "https://api.example.com/2" }, {
-      status: 201,
-      statusText: "Created",
-      headers: {},
-      data: {},
-      duration: 200,
-      request: { method: "POST", url: "https://api.example.com/2" },
-    });
+    addToHistory(
+      store,
+      { method: "POST", url: "https://api.example.com/2" },
+      {
+        status: 201,
+        statusText: "Created",
+        headers: {},
+        data: {},
+        duration: 200,
+        request: { method: "POST", url: "https://api.example.com/2" },
+      },
+    );
 
     expect(store.entries[0].request.url).toBe("https://api.example.com/2");
     expect(store.entries[1].request.url).toBe("https://api.example.com/1");
@@ -88,7 +96,7 @@ describe("history", () => {
           data: {},
           duration: 100,
           request: { method: "GET", url: `https://api.example.com/${i}` },
-        }
+        },
       );
     }
 
@@ -111,7 +119,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/users" },
-      }
+      },
     );
 
     const found = getHistoryEntry(store, entry.id);
@@ -137,7 +145,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/users" },
-      }
+      },
     );
 
     const removed = removeHistoryEntry(store, entry.id);
@@ -163,7 +171,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/1" },
-      }
+      },
     );
     addToHistory(
       store,
@@ -175,7 +183,7 @@ describe("history", () => {
         data: {},
         duration: 200,
         request: { method: "POST", url: "https://api.example.com/2" },
-      }
+      },
     );
 
     clearHistory(store);
@@ -194,7 +202,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/users" },
-      }
+      },
     );
     addToHistory(
       store,
@@ -206,7 +214,7 @@ describe("history", () => {
         data: {},
         duration: 200,
         request: { method: "POST", url: "https://api.example.com/posts" },
-      }
+      },
     );
 
     const results = searchHistory(store, "users");
@@ -226,7 +234,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/users" },
-      }
+      },
     );
     addToHistory(
       store,
@@ -238,7 +246,7 @@ describe("history", () => {
         data: {},
         duration: 200,
         request: { method: "POST", url: "https://api.example.com/posts" },
-      }
+      },
     );
 
     const results = searchHistory(store, "POST");
@@ -258,7 +266,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/users" },
-      }
+      },
     );
     addToHistory(
       store,
@@ -270,7 +278,7 @@ describe("history", () => {
         data: {},
         duration: 200,
         request: { method: "POST", url: "https://api.example.com/posts" },
-      }
+      },
     );
 
     const results = filterByMethod(store, "GET");
@@ -290,7 +298,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/users" },
-      }
+      },
     );
     addToHistory(
       store,
@@ -302,7 +310,7 @@ describe("history", () => {
         data: {},
         duration: 200,
         request: { method: "POST", url: "https://api.example.com/posts" },
-      }
+      },
     );
 
     const results = filterByStatus(store, 201);
@@ -317,18 +325,14 @@ describe("history", () => {
       url: "https://api.example.com/users",
       headers: { Authorization: "Bearer token" },
     };
-    addToHistory(
-      store,
+    addToHistory(store, request, {
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      data: {},
+      duration: 100,
       request,
-      {
-        status: 200,
-        statusText: "OK",
-        headers: {},
-        data: {},
-        duration: 100,
-        request,
-      }
-    );
+    });
 
     const replayed = replayEntry(store, store.entries[0].id);
     expect(replayed).toEqual(request);
@@ -352,7 +356,7 @@ describe("history", () => {
         data: {},
         duration: 100,
         request: { method: "GET", url: "https://api.example.com/users" },
-      }
+      },
     );
 
     const serialized = serializeHistory(store);
@@ -361,7 +365,7 @@ describe("history", () => {
     expect(deserialized.entries.length).toBe(1);
     expect(deserialized.maxEntries).toBe(1000);
     expect(deserialized.entries[0].request.url).toBe(
-      "https://api.example.com/users"
+      "https://api.example.com/users",
     );
   });
 

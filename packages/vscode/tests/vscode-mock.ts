@@ -5,7 +5,9 @@ import { vi } from "vitest";
 
 class MockWebviewPanel {
   static instances: MockWebviewPanel[] = [];
-  static reset() { MockWebviewPanel.instances = []; }
+  static reset() {
+    MockWebviewPanel.instances = [];
+  }
 
   public onDidReceiveMessageHandler: ((msg: any) => void) | null = null;
   public postMessageCalls: any[] = [];
@@ -15,7 +17,7 @@ class MockWebviewPanel {
     public viewType: string,
     public title: string,
     public viewColumn: number,
-    public options: any
+    public options: any,
   ) {
     MockWebviewPanel.instances.push(this);
   }
@@ -28,8 +30,12 @@ class MockWebviewPanel {
     postMessage: (msg: any) => {
       this.postMessageCalls.push(msg);
     },
-    get html() { return this.htmlValue; },
-    set html(value: string) { this.htmlValue = value; },
+    get html() {
+      return this.htmlValue;
+    },
+    set html(value: string) {
+      this.htmlValue = value;
+    },
   };
 
   reveal = vi.fn();
@@ -38,10 +44,12 @@ class MockWebviewPanel {
 }
 
 export const window = {
-  createWebviewPanel: vi.fn((viewType: string, title: string, viewColumn: number, options: any) => {
-    const panel = new MockWebviewPanel(viewType, title, viewColumn, options);
-    return panel;
-  }),
+  createWebviewPanel: vi.fn(
+    (viewType: string, title: string, viewColumn: number, options: any) => {
+      const panel = new MockWebviewPanel(viewType, title, viewColumn, options);
+      return panel;
+    },
+  ),
 };
 
 export const commands = {

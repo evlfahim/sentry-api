@@ -4,7 +4,12 @@ import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
 import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
 import ToastContainer from "./components/Toast";
-import type { HistoryEntry, RequestFile, RequestOptions, Response } from "@sentry-api/core/browser";
+import type {
+  HistoryEntry,
+  RequestFile,
+  RequestOptions,
+  Response,
+} from "@sentry-api/core/browser";
 import {
   addToHistory,
   clearHistory,
@@ -45,7 +50,7 @@ let toastIdCounter = 0;
 function addToast(
   setToasts: React.Dispatch<React.SetStateAction<Toast[]>>,
   message: string,
-  type: Toast["type"] = "info"
+  type: Toast["type"] = "info",
 ) {
   const id = `toast-${++toastIdCounter}-${Date.now()}`;
   setToasts((prev) => [...prev, { id, message, type }]);
@@ -59,12 +64,22 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [collections, setCollections] = useState<LoadedCollection[]>([]);
   const [basePath, setBasePath] = useState<string | null>(null);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
-  const [editorRequest, setEditorRequest] = useState<RequestOptions | undefined>(undefined);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<
+    string | null
+  >(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
+    null,
+  );
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
+    null,
+  );
+  const [editorRequest, setEditorRequest] = useState<
+    RequestOptions | undefined
+  >(undefined);
   const [response, setResponse] = useState<Response | null>(null);
-  const [previousResponse, setPreviousResponse] = useState<Response | null>(null);
+  const [previousResponse, setPreviousResponse] = useState<Response | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -87,7 +102,11 @@ export default function App() {
 
   const persistHistory = useCallback(() => {
     saveHistory(historyStoreRef.current).catch((err) => {
-      addToast(setToasts, `Could not save history: ${errorMessage(err)}`, "error");
+      addToast(
+        setToasts,
+        `Could not save history: ${errorMessage(err)}`,
+        "error",
+      );
     });
   }, []);
 
@@ -107,7 +126,12 @@ export default function App() {
         setHistory([...store.entries]);
       })
       .catch((err) => {
-        if (!cancelled) addToast(setToasts, `Could not load history: ${errorMessage(err)}`, "warning");
+        if (!cancelled)
+          addToast(
+            setToasts,
+            `Could not load history: ${errorMessage(err)}`,
+            "warning",
+          );
       });
     return () => {
       cancelled = true;
@@ -132,17 +156,28 @@ export default function App() {
       if (watchCleanupRef.current) {
         watchCleanupRef.current();
       }
-      watchCleanupRef.current = watchCollections(folderPath, (kind, changedPaths) => {
-        addToast(setToasts, `File changed: ${changedPaths.join(", ")} (${kind})`, "info");
-        // Reload collections to pick up changes
-        loadCollections(folderPath)
-          .then((updated) => {
-            setCollections(updated);
-          })
-          .catch(() => {});
-      });
+      watchCleanupRef.current = watchCollections(
+        folderPath,
+        (kind, changedPaths) => {
+          addToast(
+            setToasts,
+            `File changed: ${changedPaths.join(", ")} (${kind})`,
+            "info",
+          );
+          // Reload collections to pick up changes
+          loadCollections(folderPath)
+            .then((updated) => {
+              setCollections(updated);
+            })
+            .catch(() => {});
+        },
+      );
     } catch (err) {
-      addToast(setToasts, `Could not open folder: ${errorMessage(err)}`, "error");
+      addToast(
+        setToasts,
+        `Could not open folder: ${errorMessage(err)}`,
+        "error",
+      );
     }
   }, []);
 
@@ -154,7 +189,11 @@ export default function App() {
         await openCollections(selected);
       }
     } catch (err) {
-      addToast(setToasts, `Could not open folder: ${errorMessage(err)}`, "error");
+      addToast(
+        setToasts,
+        `Could not open folder: ${errorMessage(err)}`,
+        "error",
+      );
     }
   }, [openCollections]);
 
@@ -178,14 +217,18 @@ export default function App() {
         setHistory([...historyStoreRef.current.entries]);
         setSelectedHistoryId(entry.id);
         persistHistory();
-        addToast(setToasts, `Response: ${result.status} ${result.statusText} (${result.duration}ms)`, "success");
+        addToast(
+          setToasts,
+          `Response: ${result.status} ${result.statusText} (${result.duration}ms)`,
+          "success",
+        );
       } catch (err) {
         addToast(setToasts, errorMessage(err), "error");
       } finally {
         setLoading(false);
       }
     },
-    [persistHistory, response, setToasts]
+    [persistHistory, response, setToasts],
   );
 
   /** Select a request from a collection and load it into the editor. */
@@ -201,7 +244,7 @@ export default function App() {
       setResponse(null);
       setPreviousResponse(null);
     },
-    [collections]
+    [collections],
   );
 
   /** Replay a history entry: load its request and show its recorded response. */
@@ -225,13 +268,20 @@ export default function App() {
     addToast(setToasts, "History cleared", "info");
   }, [persistHistory, setToasts]);
 
-  const handleEnvSelect = useCallback((name: string, values: Record<string, string>) => {
-    setActiveEnv(name || null);
-    setEnvValues(values);
-    if (name) {
-      addToast(setToasts, `Environment "${name}" loaded (${Object.keys(values).length} variables)`, "info");
-    }
-  }, [setToasts]);
+  const handleEnvSelect = useCallback(
+    (name: string, values: Record<string, string>) => {
+      setActiveEnv(name || null);
+      setEnvValues(values);
+      if (name) {
+        addToast(
+          setToasts,
+          `Environment "${name}" loaded (${Object.keys(values).length} variables)`,
+          "info",
+        );
+      }
+    },
+    [setToasts],
+  );
 
   // Cleanup file watcher on unmount
   useEffect(() => {
@@ -248,7 +298,9 @@ export default function App() {
         {/* Top bar */}
         <header className="h-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-indigo-600 dark:text-indigo-400">Sentry API</span>
+            <span className="font-bold text-sm text-indigo-600 dark:text-indigo-400">
+              Sentry API
+            </span>
             <span className="text-xs text-gray-400">v0.1.0</span>
           </div>
           <div className="flex items-center gap-3">
@@ -302,7 +354,11 @@ export default function App() {
           <span>
             {collections.length} collections · {history.length} history entries
           </span>
-          {basePath && <span className="truncate font-mono" title={basePath}>{basePath}</span>}
+          {basePath && (
+            <span className="truncate font-mono" title={basePath}>
+              {basePath}
+            </span>
+          )}
           <span className="ml-auto text-gray-400 dark:text-gray-500">
             Ctrl+Enter to send
           </span>

@@ -28,7 +28,7 @@ export function createHistoryStore(maxEntries: number = 1000): HistoryStore {
 export function addToHistory(
   store: HistoryStore,
   request: RequestOptions,
-  response: Response
+  response: Response,
 ): HistoryEntry {
   const entry: HistoryEntry = {
     id: generateId(),
@@ -52,7 +52,7 @@ export function addToHistory(
  */
 export function getHistoryEntry(
   store: HistoryStore,
-  id: string
+  id: string,
 ): HistoryEntry | undefined {
   return store.entries.find((entry) => entry.id === id);
 }
@@ -60,10 +60,7 @@ export function getHistoryEntry(
 /**
  * Removes a history entry by ID.
  */
-export function removeHistoryEntry(
-  store: HistoryStore,
-  id: string
-): boolean {
+export function removeHistoryEntry(store: HistoryStore, id: string): boolean {
   const index = store.entries.findIndex((entry) => entry.id === id);
   if (index === -1) {
     return false;
@@ -84,14 +81,14 @@ export function clearHistory(store: HistoryStore): void {
  */
 export function searchHistory(
   store: HistoryStore,
-  keyword: string
+  keyword: string,
 ): HistoryEntry[] {
   const lowerKeyword = keyword.toLowerCase();
   return store.entries.filter(
     (entry) =>
       entry.request.url.toLowerCase().includes(lowerKeyword) ||
       entry.request.method.toLowerCase().includes(lowerKeyword) ||
-      entry.response.status.toString().includes(lowerKeyword)
+      entry.response.status.toString().includes(lowerKeyword),
   );
 }
 
@@ -100,10 +97,10 @@ export function searchHistory(
  */
 export function filterByMethod(
   store: HistoryStore,
-  method: string
+  method: string,
 ): HistoryEntry[] {
   return store.entries.filter(
-    (entry) => entry.request.method.toUpperCase() === method.toUpperCase()
+    (entry) => entry.request.method.toUpperCase() === method.toUpperCase(),
   );
 }
 
@@ -112,11 +109,9 @@ export function filterByMethod(
  */
 export function filterByStatus(
   store: HistoryStore,
-  status: number
+  status: number,
 ): HistoryEntry[] {
-  return store.entries.filter(
-    (entry) => entry.response.status === status
-  );
+  return store.entries.filter((entry) => entry.response.status === status);
 }
 
 /**
@@ -124,7 +119,7 @@ export function filterByStatus(
  */
 export function replayEntry(
   store: HistoryStore,
-  id: string
+  id: string,
 ): RequestOptions | undefined {
   const entry = getHistoryEntry(store, id);
   if (!entry) {

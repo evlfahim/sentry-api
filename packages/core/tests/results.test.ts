@@ -2,11 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import {
-  isErrorResponse,
-  getHeader,
-  parseResponseBody,
-} from "../src/results";
+import { isErrorResponse, getHeader, parseResponseBody } from "../src/results";
 import type { Response, ErrorResponse } from "../src/types";
 import * as browser from "../src/browser";
 
@@ -45,11 +41,15 @@ describe("getHeader", () => {
 
 describe("parseResponseBody", () => {
   it("parses JSON when the content type is JSON", () => {
-    expect(parseResponseBody('{"a":1}', "application/json; charset=utf-8")).toEqual({ a: 1 });
+    expect(
+      parseResponseBody('{"a":1}', "application/json; charset=utf-8"),
+    ).toEqual({ a: 1 });
   });
 
   it("parses vendor +json content types", () => {
-    expect(parseResponseBody("[1,2]", "application/problem+json")).toEqual([1, 2]);
+    expect(parseResponseBody("[1,2]", "application/problem+json")).toEqual([
+      1, 2,
+    ]);
   });
 
   it("parses JSON-looking bodies without a content type", () => {
@@ -57,11 +57,15 @@ describe("parseResponseBody", () => {
   });
 
   it("keeps invalid JSON as text", () => {
-    expect(parseResponseBody("{not json", "application/json")).toBe("{not json");
+    expect(parseResponseBody("{not json", "application/json")).toBe(
+      "{not json",
+    );
   });
 
   it("keeps non-JSON bodies as text", () => {
-    expect(parseResponseBody("<html></html>", "text/html")).toBe("<html></html>");
+    expect(parseResponseBody("<html></html>", "text/html")).toBe(
+      "<html></html>",
+    );
   });
 
   it("returns null for an empty body", () => {
@@ -99,7 +103,9 @@ describe("browser entry point", () => {
     for (const file of browserModules) {
       const source = fs.readFileSync(path.join(srcDir, file), "utf-8");
       expect(source, file).not.toMatch(/from\s+["'](fs|path|os|axios)["']/);
-      expect(source, file).not.toMatch(/from\s+["']\.\/(http-client|environment|collections)["']/);
+      expect(source, file).not.toMatch(
+        /from\s+["']\.\/(http-client|environment|collections)["']/,
+      );
     }
   });
 });

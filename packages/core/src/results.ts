@@ -4,7 +4,7 @@ import type { ErrorResponse, Response } from "./types";
  * Type guard distinguishing an ErrorResponse from a successful Response.
  */
 export function isErrorResponse(
-  result: Response | ErrorResponse
+  result: Response | ErrorResponse,
 ): result is ErrorResponse {
   return (
     typeof (result as ErrorResponse).error === "string" &&
@@ -17,7 +17,7 @@ export function isErrorResponse(
  */
 export function getHeader(
   headers: Record<string, string> | undefined,
-  name: string
+  name: string,
 ): string | undefined {
   if (!headers) {
     return undefined;
@@ -36,10 +36,7 @@ export function getHeader(
  * `Response.data`: JSON bodies are parsed, everything else stays text.
  * An empty body becomes `null`.
  */
-export function parseResponseBody(
-  text: string,
-  contentType?: string
-): unknown {
+export function parseResponseBody(text: string, contentType?: string): unknown {
   if (text === "") {
     return null;
   }

@@ -18,7 +18,7 @@ export type { RequestFile, Collection, CollectionFolder } from "./types";
 export function readCollection(folderPath: string): Collection {
   const collectionPath = path.join(folderPath, "collection.json");
   const collectionData = JSON.parse(
-    fs.readFileSync(collectionPath, "utf-8")
+    fs.readFileSync(collectionPath, "utf-8"),
   ) as Omit<Collection, "requests">;
 
   const requests: RequestFile[] = [];
@@ -33,10 +33,7 @@ export function readCollection(folderPath: string): Collection {
 /**
  * Recursively reads all request JSON files in a folder.
  */
-function readRequestFiles(
-  folderPath: string,
-  requests: RequestFile[]
-): void {
+function readRequestFiles(folderPath: string, requests: RequestFile[]): void {
   const entries = fs.readdirSync(folderPath, { withFileTypes: true });
 
   for (const entry of entries) {
@@ -48,7 +45,9 @@ function readRequestFiles(
       entry.name !== "collection.json"
     ) {
       const filePath = path.join(folderPath, entry.name);
-      const data = JSON.parse(fs.readFileSync(filePath, "utf-8")) as RequestFile;
+      const data = JSON.parse(
+        fs.readFileSync(filePath, "utf-8"),
+      ) as RequestFile;
       requests.push(data);
     }
   }
@@ -59,7 +58,7 @@ function readRequestFiles(
  */
 export function writeCollection(
   folderPath: string,
-  collection: Collection
+  collection: Collection,
 ): void {
   // Ensure directory exists
   fs.mkdirSync(folderPath, { recursive: true });
@@ -73,7 +72,7 @@ export function writeCollection(
   };
   fs.writeFileSync(
     path.join(folderPath, "collection.json"),
-    JSON.stringify(collectionMeta, null, 2)
+    JSON.stringify(collectionMeta, null, 2),
   );
 
   // Write each request as a separate file
@@ -81,7 +80,7 @@ export function writeCollection(
     const fileName = `${request.id}.json`;
     fs.writeFileSync(
       path.join(folderPath, fileName),
-      JSON.stringify(request, null, 2)
+      JSON.stringify(request, null, 2),
     );
   }
 }
@@ -91,7 +90,7 @@ export function writeCollection(
  */
 export function createCollection(
   basePath: string,
-  collection: Collection
+  collection: Collection,
 ): string {
   const folderPath = path.join(basePath, collection.id);
   writeCollection(folderPath, collection);
@@ -103,7 +102,7 @@ export function createCollection(
  */
 export function readRequest(
   collectionPath: string,
-  requestId: string
+  requestId: string,
 ): RequestFile | null {
   const filePath = path.join(collectionPath, `${requestId}.json`);
   if (!fs.existsSync(filePath)) {
@@ -117,7 +116,7 @@ export function readRequest(
  */
 export function updateRequest(
   collectionPath: string,
-  request: RequestFile
+  request: RequestFile,
 ): void {
   request.updated = new Date().toISOString();
   const filePath = path.join(collectionPath, `${request.id}.json`);
@@ -129,7 +128,7 @@ export function updateRequest(
  */
 export function deleteRequest(
   collectionPath: string,
-  requestId: string
+  requestId: string,
 ): boolean {
   const filePath = path.join(collectionPath, `${requestId}.json`);
   if (!fs.existsSync(filePath)) {
@@ -157,7 +156,7 @@ export function listCollections(basePath: string): Collection[] {
       if (fs.existsSync(collectionFile)) {
         try {
           const collectionData = JSON.parse(
-            fs.readFileSync(collectionFile, "utf-8")
+            fs.readFileSync(collectionFile, "utf-8"),
           ) as Omit<Collection, "requests">;
           const requests: RequestFile[] = [];
           readRequestFiles(collectionPath, requests);
@@ -177,15 +176,13 @@ export function listCollections(basePath: string): Collection[] {
  */
 export function migrateCollection(
   oldFilePath: string,
-  basePath: string
+  basePath: string,
 ): string | null {
   if (!fs.existsSync(oldFilePath)) {
     return null;
   }
 
-  const data = JSON.parse(
-    fs.readFileSync(oldFilePath, "utf-8")
-  ) as Collection;
+  const data = JSON.parse(fs.readFileSync(oldFilePath, "utf-8")) as Collection;
 
   const newFolder = path.join(basePath, data.id);
   writeCollection(newFolder, data);

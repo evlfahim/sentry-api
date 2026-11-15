@@ -59,7 +59,7 @@ export function parseEnvFile(content: string): Record<string, string> {
  */
 export function interpolate(
   template: string,
-  env: Record<string, string>
+  env: Record<string, string>,
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
     return env[key] ?? `{{${key}}}`;
@@ -69,10 +69,7 @@ export function interpolate(
 /**
  * Substitutes {{variable}} placeholders in an object (recursively for strings).
  */
-export function interpolateObject<T>(
-  obj: T,
-  env: Record<string, string>
-): T {
+export function interpolateObject<T>(obj: T, env: Record<string, string>): T {
   if (typeof obj === "string") {
     return interpolate(obj, env) as unknown as T;
   }

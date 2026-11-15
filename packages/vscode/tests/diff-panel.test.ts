@@ -9,16 +9,18 @@ function createMockDiffPanel(): { panel: DiffPanel } {
   WebviewPanel.reset();
   (window.createWebviewPanel as any).mockReset();
 
-  const mockPanel = new WebviewPanel(
-    "sentryApiDiff",
-    "Response Diff",
-    2,
-    { enableScripts: true, retainContextWhenHidden: true }
-  );
+  const mockPanel = new WebviewPanel("sentryApiDiff", "Response Diff", 2, {
+    enableScripts: true,
+    retainContextWhenHidden: true,
+  });
 
   (window.createWebviewPanel as any).mockReturnValue(mockPanel);
 
-  const panel = new DiffPanel({ scheme: "file", authority: "", path: "/test" } as any);
+  const panel = new DiffPanel({
+    scheme: "file",
+    authority: "",
+    path: "/test",
+  } as any);
   return { panel };
 }
 

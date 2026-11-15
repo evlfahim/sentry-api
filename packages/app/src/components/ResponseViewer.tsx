@@ -55,8 +55,8 @@ export default function ResponseViewer({
                     response.status < 300
                       ? "text-green-600 dark:text-green-400"
                       : response.status < 400
-                      ? "text-yellow-600 dark:text-yellow-400"
-                      : "text-red-600 dark:text-red-400"
+                        ? "text-yellow-600 dark:text-yellow-400"
+                        : "text-red-600 dark:text-red-400"
                   }
                 >
                   {response.status} {response.statusText}
@@ -67,7 +67,8 @@ export default function ResponseViewer({
               </span>
               {previousResponse && (
                 <span className="text-xs text-indigo-500 dark:text-indigo-400">
-                  {diffResults.length} change{diffResults.length !== 1 ? "s" : ""}
+                  {diffResults.length} change
+                  {diffResults.length !== 1 ? "s" : ""}
                 </span>
               )}
             </>
@@ -134,7 +135,10 @@ export default function ResponseViewer({
               <table className="w-full text-xs font-mono bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <tbody>
                   {Object.entries(response.headers).map(([key, value]) => (
-                    <tr key={key} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <tr
+                      key={key}
+                      className="border-b border-gray-100 dark:border-gray-700 last:border-0"
+                    >
                       <td className="px-3 py-1.5 font-semibold text-gray-600 dark:text-gray-300 align-top whitespace-nowrap">
                         {key}
                       </td>
@@ -163,8 +167,8 @@ export default function ResponseViewer({
                           d.type === "changed"
                             ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
                             : d.type === "added"
-                            ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                            : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                              ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                              : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-1">
@@ -173,11 +177,15 @@ export default function ResponseViewer({
                               d.type === "changed"
                                 ? "text-yellow-600 dark:text-yellow-400"
                                 : d.type === "added"
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-red-600 dark:text-red-400"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-red-600 dark:text-red-400"
                             }`}
                           >
-                            {d.type === "changed" ? "~" : d.type === "added" ? "+" : "-"}
+                            {d.type === "changed"
+                              ? "~"
+                              : d.type === "added"
+                                ? "+"
+                                : "-"}
                           </span>
                           <span className="font-semibold text-gray-700 dark:text-gray-300">
                             {d.path || "(root)"}

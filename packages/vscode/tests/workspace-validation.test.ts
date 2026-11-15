@@ -4,7 +4,11 @@ import {
   type WebviewMessage,
   type WebviewState,
 } from "../src/webview";
-import { createHistoryStore, type RequestFile, type Response } from "@sentry-api/core";
+import {
+  createHistoryStore,
+  type RequestFile,
+  type Response,
+} from "@sentry-api/core";
 
 // Mock the core module's sendRequest so it works with dynamic imports in webview.ts
 vi.mock("@sentry-api/core", async (importOriginal) => {
@@ -200,7 +204,10 @@ describe("Step 13: Workspace validation", () => {
       });
 
       // Change folder for workspace A only
-      const messageA: WebviewMessage = { type: "folder-selected", path: "/new/path/a" };
+      const messageA: WebviewMessage = {
+        type: "folder-selected",
+        path: "/new/path/a",
+      };
       await handleWebviewMessage(messageA, stateA);
 
       // Workspace B should be unaffected
@@ -268,7 +275,10 @@ describe("Step 13: Workspace validation", () => {
         fs: createMockFs({ collections: [] }),
       });
 
-      const message: WebviewMessage = { type: "folder-selected", path: "/empty/workspace" };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: "/empty/workspace",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(1);
@@ -311,16 +321,17 @@ describe("Step 13: Workspace validation", () => {
             {
               id: "nested-col",
               name: "Nested Collection",
-              requests: [
-                { id: "nested-req-1", name: "Nested Request" },
-              ],
+              requests: [{ id: "nested-req-1", name: "Nested Request" }],
             },
           ],
           requests: { "nested-req-1": nestedRequest },
         }),
       });
 
-      const message: WebviewMessage = { type: "request-selected", id: "nested-req-1" };
+      const message: WebviewMessage = {
+        type: "request-selected",
+        id: "nested-req-1",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(1);
@@ -335,7 +346,10 @@ describe("Step 13: Workspace validation", () => {
         fs: createMockFs({ collections: [] }),
       });
 
-      const message: WebviewMessage = { type: "folder-selected", path: "/projects/My API Project" };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: "/projects/My API Project",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(state.folderPath).toBe("/projects/My API Project");
@@ -348,7 +362,10 @@ describe("Step 13: Workspace validation", () => {
         fs: createMockFs({ collections: [] }),
       });
 
-      const message: WebviewMessage = { type: "folder-selected", path: "/projects/api-project_v2.0 (beta)" };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: "/projects/api-project_v2.0 (beta)",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(state.folderPath).toBe("/projects/api-project_v2.0 (beta)");
@@ -361,7 +378,10 @@ describe("Step 13: Workspace validation", () => {
         fs: createMockFs({ collections: [] }),
       });
 
-      const message: WebviewMessage = { type: "folder-selected", path: "/projects/api-プロジェクト" };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: "/projects/api-プロジェクト",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(state.folderPath).toBe("/projects/api-プロジェクト");
@@ -373,8 +393,19 @@ describe("Step 13: Workspace validation", () => {
     it("does not register commands with generic names", () => {
       // Verify no command uses a generic name that could conflict
       const genericNames = [
-        "open", "save", "new", "delete", "edit", "copy", "paste",
-        "find", "search", "run", "build", "test", "debug",
+        "open",
+        "save",
+        "new",
+        "delete",
+        "edit",
+        "copy",
+        "paste",
+        "find",
+        "search",
+        "run",
+        "build",
+        "test",
+        "debug",
       ];
 
       const sentryCommands = [
@@ -396,8 +427,9 @@ describe("Step 13: Workspace validation", () => {
 
       for (const cmd of sentryCommands) {
         const commandName = cmd.replace("sentry-api.", "");
-        expect(genericNames).not.toContain(commandName,
-          `Command "${cmd}" uses a generic name "${commandName}" that could conflict`
+        expect(genericNames).not.toContain(
+          commandName,
+          `Command "${cmd}" uses a generic name "${commandName}" that could conflict`,
         );
       }
     });
@@ -406,8 +438,16 @@ describe("Step 13: Workspace validation", () => {
       const viewId = "sentry-api-explorer";
       // Should not conflict with common VS Code view IDs
       const commonViewIds = [
-        "explorer", "search", "source-control", "debug", "extensions",
-        "problems", "output", "terminal", "testing", "remote",
+        "explorer",
+        "search",
+        "source-control",
+        "debug",
+        "extensions",
+        "problems",
+        "output",
+        "terminal",
+        "testing",
+        "remote",
       ];
 
       expect(commonViewIds).not.toContain(viewId);
@@ -418,8 +458,12 @@ describe("Step 13: Workspace validation", () => {
       const viewType = "sentryApi";
       // Should not conflict with common webview types
       const commonViewTypes = [
-        "markdown.preview", "html.preview", "git.baseCommit",
-        "git.history", "git.stage", "git.unstage",
+        "markdown.preview",
+        "html.preview",
+        "git.baseCommit",
+        "git.history",
+        "git.stage",
+        "git.unstage",
       ];
 
       expect(commonViewTypes).not.toContain(viewType);
@@ -460,8 +504,9 @@ describe("Step 13: Workspace validation", () => {
       ];
 
       for (const builtIn of builtInCommands) {
-        expect(sentryCommands).not.toContain(builtIn,
-          `Sentry API command conflicts with built-in command: ${builtIn}`
+        expect(sentryCommands).not.toContain(
+          builtIn,
+          `Sentry API command conflicts with built-in command: ${builtIn}`,
         );
       }
     });
@@ -483,14 +528,15 @@ describe("Step 13: Workspace validation", () => {
         folderPath: workspaceA,
         currentRequest: createMockRequest({ id: "req-a", name: "Request A" }),
         fs: createMockFs({
-          collections: [
-            { id: "col-a", name: "Project A", requests: [] },
-          ],
+          collections: [{ id: "col-a", name: "Project A", requests: [] }],
         }),
       });
 
       // Switch to workspace B (empty collections from mock)
-      const message: WebviewMessage = { type: "folder-selected", path: workspaceB };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: workspaceB,
+      };
       await handleWebviewMessage(message, stateA);
 
       // The folder path should be updated
@@ -522,7 +568,10 @@ describe("Step 13: Workspace validation", () => {
       });
 
       // Switch to workspace B
-      const message: WebviewMessage = { type: "folder-selected", path: workspaceB };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: workspaceB,
+      };
       await handleWebviewMessage(message, stateA);
 
       // History should be preserved (it's in-memory)
@@ -548,7 +597,10 @@ describe("Step 13: Workspace validation", () => {
       });
 
       // Switch to workspace B
-      const message: WebviewMessage = { type: "folder-selected", path: workspaceB };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: workspaceB,
+      };
       await handleWebviewMessage(message, stateA);
 
       // Response should still be present (folder-selected doesn't clear it)
@@ -577,7 +629,10 @@ describe("Step 13: Workspace validation", () => {
             {
               id: "large-col",
               name: "Large Collection",
-              requests: Object.values(requests).map(r => ({ id: r.id, name: r.name })),
+              requests: Object.values(requests).map((r) => ({
+                id: r.id,
+                name: r.name,
+              })),
             },
           ],
           requests,
@@ -585,7 +640,10 @@ describe("Step 13: Workspace validation", () => {
       });
 
       // Select a request from the middle
-      const message: WebviewMessage = { type: "request-selected", id: "req-50" };
+      const message: WebviewMessage = {
+        type: "request-selected",
+        id: "req-50",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(1);
@@ -601,7 +659,10 @@ describe("Step 13: Workspace validation", () => {
         fs: createMockFs({ requests: {} }),
       });
 
-      const message: WebviewMessage = { type: "request-selected", id: "nonexistent" };
+      const message: WebviewMessage = {
+        type: "request-selected",
+        id: "nonexistent",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(0);
@@ -614,7 +675,10 @@ describe("Step 13: Workspace validation", () => {
         fs: createMockFs({ requests: {} }),
       });
 
-      const message: WebviewMessage = { type: "request-selected", id: "corrupted" };
+      const message: WebviewMessage = {
+        type: "request-selected",
+        id: "corrupted",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(0);
@@ -628,9 +692,18 @@ describe("Step 13: Workspace validation", () => {
         fs: createMockFs({
           envFiles: [".env.development", ".env.staging", ".env.production"],
           envValues: {
-            ".env.development": { API_URL: "http://localhost:3000", DEBUG: "true" },
-            ".env.staging": { API_URL: "https://staging.example.com", DEBUG: "false" },
-            ".env.production": { API_URL: "https://api.example.com", DEBUG: "false" },
+            ".env.development": {
+              API_URL: "http://localhost:3000",
+              DEBUG: "true",
+            },
+            ".env.staging": {
+              API_URL: "https://staging.example.com",
+              DEBUG: "false",
+            },
+            ".env.production": {
+              API_URL: "https://api.example.com",
+              DEBUG: "false",
+            },
           },
         }),
       });
@@ -640,7 +713,11 @@ describe("Step 13: Workspace validation", () => {
 
       expect(actions).toHaveLength(1);
       expect(actions[0].type).toBe("env-files");
-      expect(actions[0].files).toEqual([".env.development", ".env.staging", ".env.production"]);
+      expect(actions[0].files).toEqual([
+        ".env.development",
+        ".env.staging",
+        ".env.production",
+      ]);
     });
 
     it("switches active environment file per workspace", async () => {
@@ -652,7 +729,9 @@ describe("Step 13: Workspace validation", () => {
         activeEnvFile: ".env.development",
         fs: createMockFs({
           envFiles: [".env.development"],
-          envValues: { ".env.development": { API_URL: "http://localhost:3000" } },
+          envValues: {
+            ".env.development": { API_URL: "http://localhost:3000" },
+          },
         }),
       });
 
@@ -661,7 +740,9 @@ describe("Step 13: Workspace validation", () => {
         activeEnvFile: ".env.production",
         fs: createMockFs({
           envFiles: [".env.production"],
-          envValues: { ".env.production": { API_URL: "https://api.example.com" } },
+          envValues: {
+            ".env.production": { API_URL: "https://api.example.com" },
+          },
         }),
       });
 
@@ -718,11 +799,17 @@ describe("Step 13: Workspace validation", () => {
       });
 
       // Create a request in workspace A
-      const messageA: WebviewMessage = { type: "new-request", name: "Request A" };
+      const messageA: WebviewMessage = {
+        type: "new-request",
+        name: "Request A",
+      };
       await handleWebviewMessage(messageA, stateA);
 
       // Create a request in workspace B
-      const messageB: WebviewMessage = { type: "new-request", name: "Request B" };
+      const messageB: WebviewMessage = {
+        type: "new-request",
+        name: "Request B",
+      };
       await handleWebviewMessage(messageB, stateB);
 
       // Each workspace should have its own request
@@ -736,10 +823,14 @@ describe("Step 13: Workspace validation", () => {
       const workspaceB = "/projects/api-b";
 
       const mockFsA = createMockFs({
-        requests: { "req-a": createMockRequest({ id: "req-a", name: "Request A" }) },
+        requests: {
+          "req-a": createMockRequest({ id: "req-a", name: "Request A" }),
+        },
       });
       const mockFsB = createMockFs({
-        requests: { "req-b": createMockRequest({ id: "req-b", name: "Request B" }) },
+        requests: {
+          "req-b": createMockRequest({ id: "req-b", name: "Request B" }),
+        },
       });
 
       const stateA = createMockState({
@@ -772,21 +863,41 @@ describe("Step 13: Workspace validation", () => {
       const workspaceB = "/projects/api-b";
 
       const mockFsA = createMockFs({
-        requests: { "req-a": createMockRequest({ id: "req-a", name: "Request A", method: "GET" }) },
+        requests: {
+          "req-a": createMockRequest({
+            id: "req-a",
+            name: "Request A",
+            method: "GET",
+          }),
+        },
       });
       const mockFsB = createMockFs({
-        requests: { "req-b": createMockRequest({ id: "req-b", name: "Request B", method: "GET" }) },
+        requests: {
+          "req-b": createMockRequest({
+            id: "req-b",
+            name: "Request B",
+            method: "GET",
+          }),
+        },
       });
 
       const stateA = createMockState({
         folderPath: workspaceA,
-        currentRequest: createMockRequest({ id: "req-a", name: "Request A", method: "GET" }),
+        currentRequest: createMockRequest({
+          id: "req-a",
+          name: "Request A",
+          method: "GET",
+        }),
         fs: mockFsA,
       });
 
       const stateB = createMockState({
         folderPath: workspaceB,
-        currentRequest: createMockRequest({ id: "req-b", name: "Request B", method: "GET" }),
+        currentRequest: createMockRequest({
+          id: "req-b",
+          name: "Request B",
+          method: "GET",
+        }),
         fs: mockFsB,
       });
 
@@ -819,14 +930,15 @@ describe("Step 13: Workspace validation", () => {
       const state = createMockState({
         folderPath: "/workspace",
         fs: createMockFs({
-          collections: [
-            { id: "col-1", name: "Collection 1", requests: [] },
-          ],
+          collections: [{ id: "col-1", name: "Collection 1", requests: [] }],
         }),
       });
 
       // Simulate a file change that triggers a refresh
-      const message: WebviewMessage = { type: "folder-selected", path: "/workspace" };
+      const message: WebviewMessage = {
+        type: "folder-selected",
+        path: "/workspace",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(1);
@@ -884,7 +996,10 @@ describe("Step 13: Workspace validation", () => {
         }),
       });
 
-      const message: WebviewMessage = { type: "request-selected", id: "deep-nested-request-id-12345" };
+      const message: WebviewMessage = {
+        type: "request-selected",
+        id: "deep-nested-request-id-12345",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(1);
@@ -897,22 +1012,38 @@ describe("Step 13: Workspace validation", () => {
     it("handles concurrent request updates", async () => {
       const state = createMockState({
         folderPath: "/workspace",
-        currentRequest: createMockRequest({ id: "req-1", name: "Original", method: "GET" }),
+        currentRequest: createMockRequest({
+          id: "req-1",
+          name: "Original",
+          method: "GET",
+        }),
         fs: createMockFs({
-          requests: { "req-1": createMockRequest({ id: "req-1", name: "Original", method: "GET" }) },
+          requests: {
+            "req-1": createMockRequest({
+              id: "req-1",
+              name: "Original",
+              method: "GET",
+            }),
+          },
         }),
       });
 
       // Simulate two concurrent updates
-      const update1 = handleWebviewMessage({
-        type: "request-updated",
-        data: { method: "POST" },
-      }, state);
+      const update1 = handleWebviewMessage(
+        {
+          type: "request-updated",
+          data: { method: "POST" },
+        },
+        state,
+      );
 
-      const update2 = handleWebviewMessage({
-        type: "request-updated",
-        data: { url: "https://new-url.example.com" },
-      }, state);
+      const update2 = handleWebviewMessage(
+        {
+          type: "request-updated",
+          data: { url: "https://new-url.example.com" },
+        },
+        state,
+      );
 
       const [result1, result2] = await Promise.all([update1, update2]);
 
@@ -935,8 +1066,12 @@ describe("Step 13: Workspace validation", () => {
           id: "h1",
           request: { method: "GET", url: "https://api.example.com/1" },
           response: {
-            status: 200, statusText: "OK", headers: {}, data: { id: 1 },
-            duration: 10, request: { method: "GET", url: "https://api.example.com/1" },
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            data: { id: 1 },
+            duration: 10,
+            request: { method: "GET", url: "https://api.example.com/1" },
           },
           timestamp: new Date().toISOString(),
         },
@@ -944,8 +1079,12 @@ describe("Step 13: Workspace validation", () => {
           id: "h2",
           request: { method: "POST", url: "https://api.example.com/2" },
           response: {
-            status: 201, statusText: "Created", headers: {}, data: { id: 2 },
-            duration: 20, request: { method: "POST", url: "https://api.example.com/2" },
+            status: 201,
+            statusText: "Created",
+            headers: {},
+            data: { id: 2 },
+            duration: 20,
+            request: { method: "POST", url: "https://api.example.com/2" },
           },
           timestamp: new Date().toISOString(),
         },
@@ -976,7 +1115,10 @@ describe("Step 13: Workspace validation", () => {
         }),
       });
 
-      const message: WebviewMessage = { type: "request-selected", id: "req-with-many-hyphens" };
+      const message: WebviewMessage = {
+        type: "request-selected",
+        id: "req-with-many-hyphens",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(1);
@@ -988,7 +1130,7 @@ describe("Step 13: Workspace validation", () => {
         folderPath: "/workspace",
         fs: createMockFs({
           requests: {
-            "req123abc456": createMockRequest({
+            req123abc456: createMockRequest({
               id: "req123abc456",
               name: "Numeric Request",
             }),
@@ -996,7 +1138,10 @@ describe("Step 13: Workspace validation", () => {
         }),
       });
 
-      const message: WebviewMessage = { type: "request-selected", id: "req123abc456" };
+      const message: WebviewMessage = {
+        type: "request-selected",
+        id: "req123abc456",
+      };
       const actions = await handleWebviewMessage(message, state);
 
       expect(actions).toHaveLength(1);
@@ -1035,7 +1180,9 @@ describe("Step 13: Workspace validation", () => {
       expect(actions).toHaveLength(1);
       expect(actions[0].type).toBe("history");
       expect(actions[0].history).toHaveLength(1);
-      expect(Object.keys(actions[0].history[0].response.data)).toHaveLength(1000);
+      expect(Object.keys(actions[0].history[0].response.data)).toHaveLength(
+        1000,
+      );
     });
   });
 

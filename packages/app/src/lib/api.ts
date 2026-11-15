@@ -46,7 +46,7 @@ function errorMessage(err: unknown): string {
  * or an `ErrorResponse` when the request could not be completed.
  */
 export async function sendHttpRequest(
-  options: RequestOptions
+  options: RequestOptions,
 ): Promise<Response | ErrorResponse> {
   const startedAt = Date.now();
   try {
@@ -78,7 +78,9 @@ export async function sendHttpRequest(
 }
 
 /** Reads all collections in a folder (one-file-per-request layout). */
-export async function loadCollections(basePath: string): Promise<LoadedCollection[]> {
+export async function loadCollections(
+  basePath: string,
+): Promise<LoadedCollection[]> {
   return invoke<LoadedCollection[]>("list_collections", { basePath });
 }
 
@@ -114,7 +116,7 @@ export async function listEnvFiles(basePath: string): Promise<string[]> {
 /** Reads the content of a `.env` file. */
 export async function readEnvFile(
   basePath: string,
-  filename: string
+  filename: string,
 ): Promise<string> {
   return invoke<string>("read_env_file", { basePath, filename });
 }
@@ -122,7 +124,7 @@ export async function readEnvFile(
 /** Starts watching a folder for file changes. Emits `collection-changed` events. */
 export function watchCollections(
   basePath: string,
-  onEvent: (kind: string, changedPaths: string[]) => void
+  onEvent: (kind: string, changedPaths: string[]) => void,
 ): () => void {
   const handler = (e: Event) => {
     const customEvent = e as CustomEvent<[string, string[]]>;

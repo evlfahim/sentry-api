@@ -10,16 +10,18 @@ function createMockHistoryPanel(): { panel: HistoryPanel } {
   (window.createWebviewPanel as any).mockReset();
 
   // Pre-create the panel so the mock has something to return
-  const mockPanel = new WebviewPanel(
-    "sentryApiHistory",
-    "Request History",
-    2,
-    { enableScripts: true, retainContextWhenHidden: true }
-  );
+  const mockPanel = new WebviewPanel("sentryApiHistory", "Request History", 2, {
+    enableScripts: true,
+    retainContextWhenHidden: true,
+  });
 
   (window.createWebviewPanel as any).mockReturnValue(mockPanel);
 
-  const panel = new HistoryPanel({ scheme: "file", authority: "", path: "/test" } as any);
+  const panel = new HistoryPanel({
+    scheme: "file",
+    authority: "",
+    path: "/test",
+  } as any);
   return { panel };
 }
 
@@ -254,7 +256,7 @@ describe("HistoryPanel", () => {
 
       const mockPanel = getCreatedPanel();
       const html = mockPanel!.webview.html;
-      expect(html).toContain("type: \"search\"");
+      expect(html).toContain('type: "search"');
       expect(html).toContain("searchText");
     });
 

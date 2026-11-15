@@ -17,7 +17,7 @@ export interface RequestTemplate {
  */
 export function buildRequest(
   template: RequestTemplate,
-  env: Record<string, string>
+  env: Record<string, string>,
 ): RequestOptions {
   const url = interpolate(template.url, env);
   const headers = template.headers
@@ -26,7 +26,9 @@ export function buildRequest(
   const query = template.query
     ? interpolateObject(template.query, env)
     : undefined;
-  const body = template.body ? interpolateObject(template.body, env) : undefined;
+  const body = template.body
+    ? interpolateObject(template.body, env)
+    : undefined;
 
   return {
     method: template.method,

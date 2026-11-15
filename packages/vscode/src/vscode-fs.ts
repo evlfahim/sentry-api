@@ -46,10 +46,7 @@ export class VsCodeFileSystem {
   }
 
   private async writeFile(uri: vscode.Uri, content: string): Promise<void> {
-    await vscode.workspace.fs.writeFile(
-      uri,
-      Buffer.from(content, "utf-8")
-    );
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
   }
 
   private async exists(uri: vscode.Uri): Promise<boolean> {
@@ -85,7 +82,7 @@ export class VsCodeFileSystem {
       const collectionUri = this.folder(entry.name);
       const collectionJsonUri = vscode.Uri.joinPath(
         collectionUri,
-        "collection.json"
+        "collection.json",
       );
 
       if (!(await this.exists(collectionJsonUri))) continue;
@@ -111,7 +108,7 @@ export class VsCodeFileSystem {
    * Recursively reads all request JSON files inside a collection folder.
    */
   private async readRequestFiles(
-    folderUri: vscode.Uri
+    folderUri: vscode.Uri,
   ): Promise<RequestFile[]> {
     const requests: RequestFile[] = [];
     await this._readRequestFilesRecursive(folderUri, requests);
@@ -120,21 +117,21 @@ export class VsCodeFileSystem {
 
   private async _readRequestFilesRecursive(
     folderUri: vscode.Uri,
-    requests: RequestFile[]
+    requests: RequestFile[],
   ): Promise<void> {
     const entries = await this.readDir(folderUri);
     for (const entry of entries) {
       if (entry.isDirectory) {
         await this._readRequestFilesRecursive(
           this.folder(entry.name),
-          requests
+          requests,
         );
       } else if (
         entry.name.endsWith(".json") &&
         entry.name !== "collection.json"
       ) {
         const content = await this.readFile(
-          vscode.Uri.joinPath(folderUri, entry.name)
+          vscode.Uri.joinPath(folderUri, entry.name),
         );
         requests.push(JSON.parse(content) as RequestFile);
       }
@@ -197,7 +194,7 @@ export class VsCodeFileSystem {
       .filter(
         (e) =>
           e.name.endsWith(".env") ||
-          (e.name.startsWith(".env.") && e.name.endsWith(".env"))
+          (e.name.startsWith(".env.") && e.name.endsWith(".env")),
       )
       .map((e) => e.name);
   }
@@ -218,7 +215,7 @@ export class VsCodeFileSystem {
    */
   async writeEnvFile(
     name: string,
-    values: Record<string, string>
+    values: Record<string, string>,
   ): Promise<void> {
     const lines: string[] = [];
     for (const [key, value] of Object.entries(values)) {
@@ -245,13 +242,13 @@ export class VsCodeFileSystem {
     };
     await this.writeFile(
       vscode.Uri.joinPath(collectionUri, "collection.json"),
-      JSON.stringify(meta, null, 2)
+      JSON.stringify(meta, null, 2),
     );
 
     for (const request of collection.requests) {
       await this.writeFile(
         vscode.Uri.joinPath(collectionUri, `${request.id}.json`),
-        JSON.stringify(request, null, 2)
+        JSON.stringify(request, null, 2),
       );
     }
   }

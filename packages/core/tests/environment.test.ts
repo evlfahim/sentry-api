@@ -147,10 +147,7 @@ describe("interpolateObject", () => {
 
     const result = interpolateObject(obj, env);
     expect(result).toEqual({
-      urls: [
-        "https://api.example.com/api",
-        "https://api.example.com/v2",
-      ],
+      urls: ["https://api.example.com/api", "https://api.example.com/v2"],
     });
   });
 

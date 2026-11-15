@@ -26,7 +26,7 @@ export class HistoryPanel {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-      }
+      },
     );
 
     this.panel.onDidDispose(() => {
@@ -34,7 +34,11 @@ export class HistoryPanel {
     });
 
     this.panel.webview.onDidReceiveMessage(
-      async (message: { type: string; index?: number; searchText?: string }) => {
+      async (message: {
+        type: string;
+        index?: number;
+        searchText?: string;
+      }) => {
         if (message.type === "replay") {
           const idx = message.index;
           if (idx !== undefined && idx >= 0 && idx < this._history.length) {
@@ -49,7 +53,7 @@ export class HistoryPanel {
           this.updateContent();
         }
       },
-      undefined
+      undefined,
     );
 
     this.updateContent();
@@ -74,7 +78,7 @@ export class HistoryPanel {
       (entry) =>
         entry.request.url.toLowerCase().includes(lower) ||
         entry.request.method.toLowerCase().includes(lower) ||
-        entry.response.status.toString().includes(lower)
+        entry.response.status.toString().includes(lower),
     );
   }
 
@@ -95,24 +99,24 @@ export class HistoryPanel {
     const historyJson = JSON.stringify(this.getFilteredHistory());
 
     const html = [
-      '<!DOCTYPE html>',
+      "<!DOCTYPE html>",
       '<html lang="en">',
-      '<head>',
+      "<head>",
       '<meta charset="UTF-8">',
       '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
       '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src ' +
         cspSource +
-        ' \'unsafe-inline\'; script-src ' +
+        " 'unsafe-inline'; script-src " +
         cspSource +
         ';">',
-      '<title>Request History</title>',
-      '<style>',
+      "<title>Request History</title>",
+      "<style>",
       "* { margin: 0; padding: 0; box-sizing: border-box; }",
       'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1e1e; color: #d4d4d4; }',
-      '.container { padding: 16px; }',
-      'h2 { font-size: 16px; margin-bottom: 12px; color: #ccc; }',
-      '.search-bar { margin-bottom: 12px; }',
-      '.search-bar input {',
+      ".container { padding: 16px; }",
+      "h2 { font-size: 16px; margin-bottom: 12px; color: #ccc; }",
+      ".search-bar { margin-bottom: 12px; }",
+      ".search-bar input {",
       "  width: 100%;",
       "  background: #3c3c3c;",
       "  border: 1px solid #555;",
@@ -121,56 +125,56 @@ export class HistoryPanel {
       "  border-radius: 3px;",
       "  font-size: 13px;",
       "}",
-      '.search-bar input:focus { outline: none; border-color: #0e639c; }',
-      '.history-count { font-size: 12px; color: #888; margin-bottom: 8px; }',
-      '.history-item { background: #252526; border: 1px solid #3c3c3c; border-radius: 4px; padding: 12px; margin-bottom: 8px; cursor: pointer; }',
-      '.history-item:hover { background: #2a2d2e; border-color: #0e639c; }',
-      '.history-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }',
-      '.method-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; min-width: 40px; text-align: center; }',
-      '.method-GET { background: #61affe; color: #fff; }',
-      '.method-POST { background: #49cc90; color: #fff; }',
-      '.method-PUT { background: #fca130; color: #fff; }',
-      '.method-DELETE { background: #f93e3e; color: #fff; }',
-      '.method-PATCH { background: #50e3c2; color: #fff; }',
-      '.status-badge { font-size: 12px; font-weight: 600; }',
-      '.status-ok { color: #4ec9b0; }',
-      '.status-error { color: #f44747; }',
-      '.url { font-size: 13px; color: #9cdcfe; word-break: break-all; }',
-      '.timestamp { font-size: 11px; color: #888; margin-top: 4px; }',
-      '.replay-btn { font-size: 11px; color: #0e639c; background: none; border: 1px solid #0e639c; padding: 2px 8px; border-radius: 3px; cursor: pointer; margin-left: auto; }',
-      '.replay-btn:hover { background: #0e639c; color: #fff; }',
-      '.empty { color: #888; font-size: 14px; text-align: center; padding: 40px 0; }',
-      '</style>',
-      '</head>',
-      '<body>',
+      ".search-bar input:focus { outline: none; border-color: #0e639c; }",
+      ".history-count { font-size: 12px; color: #888; margin-bottom: 8px; }",
+      ".history-item { background: #252526; border: 1px solid #3c3c3c; border-radius: 4px; padding: 12px; margin-bottom: 8px; cursor: pointer; }",
+      ".history-item:hover { background: #2a2d2e; border-color: #0e639c; }",
+      ".history-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }",
+      ".method-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; min-width: 40px; text-align: center; }",
+      ".method-GET { background: #61affe; color: #fff; }",
+      ".method-POST { background: #49cc90; color: #fff; }",
+      ".method-PUT { background: #fca130; color: #fff; }",
+      ".method-DELETE { background: #f93e3e; color: #fff; }",
+      ".method-PATCH { background: #50e3c2; color: #fff; }",
+      ".status-badge { font-size: 12px; font-weight: 600; }",
+      ".status-ok { color: #4ec9b0; }",
+      ".status-error { color: #f44747; }",
+      ".url { font-size: 13px; color: #9cdcfe; word-break: break-all; }",
+      ".timestamp { font-size: 11px; color: #888; margin-top: 4px; }",
+      ".replay-btn { font-size: 11px; color: #0e639c; background: none; border: 1px solid #0e639c; padding: 2px 8px; border-radius: 3px; cursor: pointer; margin-left: auto; }",
+      ".replay-btn:hover { background: #0e639c; color: #fff; }",
+      ".empty { color: #888; font-size: 14px; text-align: center; padding: 40px 0; }",
+      "</style>",
+      "</head>",
+      "<body>",
       '<div class="container">',
-      '<h2>Request History</h2>',
+      "<h2>Request History</h2>",
       '<div class="search-bar">',
       '<input type="text" id="search-input" placeholder="Search history...">',
-      '</div>',
+      "</div>",
       '<div class="history-count" id="history-count"></div>',
       '<div id="history-list"></div>',
-      '</div>',
-      '<script>',
-      'const vscode = acquireVsCodeApi();',
+      "</div>",
+      "<script>",
+      "const vscode = acquireVsCodeApi();",
       'const historyList = document.getElementById("history-list");',
       'const historyCount = document.getElementById("history-count");',
       'const searchInput = document.getElementById("search-input");',
-      '',
-      '// Listen for updates from the extension',
+      "",
+      "// Listen for updates from the extension",
       'window.addEventListener("message", event => {',
-      '  const message = event.data;',
+      "  const message = event.data;",
       '  if (message.type === "update") {',
-      '    renderHistory(message.history);',
+      "    renderHistory(message.history);",
       "  }",
       "});",
-      '',
-      '// Search input handler',
+      "",
+      "// Search input handler",
       'searchInput?.addEventListener("input", (e) => {',
       '  vscode.postMessage({ type: "search", searchText: e.target.value });',
       "});",
-      '',
-      'function renderHistory(history) {',
+      "",
+      "function renderHistory(history) {",
       "  if (!history) return;",
       "  historyCount.textContent = history.length + ' entry/entries';",
       "  if (history.length === 0) {",
@@ -205,8 +209,8 @@ export class HistoryPanel {
       "    });",
       "  });",
       "}",
-      '// Initial render',
-      'renderHistory([]);',
+      "// Initial render",
+      "renderHistory([]);",
       "</script>",
       "</body>",
       "</html>",

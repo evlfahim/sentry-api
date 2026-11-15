@@ -242,7 +242,7 @@ describe("collections", () => {
   it("should return null for migration of non-existent file", () => {
     const result = migrateCollection(
       path.join(tmpDir, "non-existent.json"),
-      tmpDir
+      tmpDir,
     );
     expect(result).toBeNull();
   });

@@ -82,7 +82,7 @@ export default function EnvironmentSwitcher({
         setLoading(false);
       }
     },
-    [basePath, onEnvSelect]
+    [basePath, onEnvSelect],
   );
 
   const handleClearEnv = useCallback(() => {
@@ -131,7 +131,10 @@ export default function EnvironmentSwitcher({
       )}
       {loading && <span className="text-xs text-gray-400">Loading...</span>}
       {error && (
-        <span className="text-xs text-red-500 dark:text-red-400 truncate max-w-[200px]" title={error}>
+        <span
+          className="text-xs text-red-500 dark:text-red-400 truncate max-w-[200px]"
+          title={error}
+        >
           {error}
         </span>
       )}

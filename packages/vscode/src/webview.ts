@@ -33,7 +33,7 @@ export interface SendResponseMessage {
  */
 export async function handleWebviewMessage(
   message: WebviewMessage,
-  state: WebviewState
+  state: WebviewState,
 ): Promise<WebviewAction[]> {
   const actions: WebviewAction[] = [];
 
@@ -140,24 +140,25 @@ export async function handleWebviewMessage(
           url: interpolate(state.currentRequest.url, envVars),
           headers: state.currentRequest.headers
             ? Object.fromEntries(
-                Object.entries(state.currentRequest.headers).map(
-                  ([k, v]) => [k, interpolate(v, envVars)]
-                )
+                Object.entries(state.currentRequest.headers).map(([k, v]) => [
+                  k,
+                  interpolate(v, envVars),
+                ]),
               )
             : undefined,
           query: state.currentRequest.query
             ? Object.fromEntries(
-                Object.entries(state.currentRequest.query).map(
-                  ([k, v]) => [k, interpolate(String(v), envVars)]
-                )
+                Object.entries(state.currentRequest.query).map(([k, v]) => [
+                  k,
+                  interpolate(String(v), envVars),
+                ]),
               )
             : undefined,
           body: state.currentRequest.body,
         };
 
-        const { sendRequest: coreSendRequest } = await import(
-          "@sentry-api/core"
-        );
+        const { sendRequest: coreSendRequest } =
+          await import("@sentry-api/core");
         const result = await coreSendRequest(options);
 
         if (isErrorResponse(result)) {
@@ -176,7 +177,10 @@ export async function handleWebviewMessage(
         }
       } catch (error) {
         const err = error as Error;
-        actions.push({ type: "error", message: `Request failed: ${err.message}` });
+        actions.push({
+          type: "error",
+          message: `Request failed: ${err.message}`,
+        });
       }
       break;
     }
@@ -280,7 +284,7 @@ export class WebviewManager {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-      }
+      },
     );
 
     this.panel.webview.onDidReceiveMessage(
@@ -291,12 +295,16 @@ export class WebviewManager {
         }
       },
       undefined,
-      context.subscriptions
+      context.subscriptions,
     );
 
-    this.panel.onDidDispose(() => {
-      this.panel.dispose();
-    }, undefined, context.subscriptions);
+    this.panel.onDidDispose(
+      () => {
+        this.panel.dispose();
+      },
+      undefined,
+      context.subscriptions,
+    );
 
     this.updateContent();
   }
@@ -367,9 +375,7 @@ export class WebviewManager {
       this.updateContent();
     } catch (error) {
       console.error("Failed to refresh collections:", error);
-      vscode.window.showErrorMessage(
-        `Failed to refresh collections: ${error}`
-      );
+      vscode.window.showErrorMessage(`Failed to refresh collections: ${error}`);
     }
   }
 
@@ -415,7 +421,10 @@ export class WebviewManager {
         break;
 
       case "diff-with-history":
-        vscode.commands.executeCommand("sentry-api.diffWithHistory", action.response);
+        vscode.commands.executeCommand(
+          "sentry-api.diffWithHistory",
+          action.response,
+        );
         break;
 
       default:
@@ -437,63 +446,63 @@ export class WebviewManager {
     const historyCount = this._state.historyStore.entries.length;
 
     const html = [
-      '<!DOCTYPE html>',
+      "<!DOCTYPE html>",
       '<html lang="en">',
-      '<head>',
+      "<head>",
       '<meta charset="UTF-8">',
       '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
       '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src ' +
         cspSource +
-        ' \'unsafe-inline\'; script-src ' +
+        " 'unsafe-inline'; script-src " +
         cspSource +
         ';">',
-      '<title>Sentry API</title>',
-      '<style>',
-      '* { margin: 0; padding: 0; box-sizing: border-box; }',
+      "<title>Sentry API</title>",
+      "<style>",
+      "* { margin: 0; padding: 0; box-sizing: border-box; }",
       'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1e1e; color: #d4d4d4; }',
-      '.container { display: flex; height: 100vh; }',
-      '.sidebar { width: 250px; background: #252526; border-right: 1px solid #3c3c3c; overflow-y: auto; }',
-      '.sidebar-header { padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }',
-      '.request-item { padding: 6px 16px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; }',
-      '.request-item:hover { background: #2a2d2e; }',
-      '.request-item.active { background: #37373d; }',
-      '.method-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; min-width: 40px; text-align: center; }',
-      '.method-GET { background: #61affe; color: #fff; }',
-      '.method-POST { background: #49cc90; color: #fff; }',
-      '.method-PUT { background: #fca130; color: #fff; }',
-      '.method-DELETE { background: #f93e3e; color: #fff; }',
-      '.method-PATCH { background: #50e3c2; color: #fff; }',
-      '.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }',
-      '.toolbar { padding: 8px 16px; background: #2d2d2d; border-bottom: 1px solid #3c3c3c; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }',
-      '.toolbar button { background: #0e639c; color: #fff; border: none; padding: 6px 16px; border-radius: 3px; cursor: pointer; font-size: 13px; }',
-      '.toolbar button:hover { background: #1177bb; }',
-      '.toolbar button:disabled { background: #555; cursor: not-allowed; }',
-      '.toolbar .env-select { background: #3c3c3c; color: #d4d4d4; border: 1px solid #555; padding: 4px 8px; border-radius: 3px; font-size: 12px; }',
-      '.toolbar .history-count { font-size: 12px; color: #888; margin-left: auto; }',
-      '.editor { flex: 1; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }',
-      '.editor label { font-size: 12px; color: #888; margin-bottom: 4px; display: block; }',
-      '.editor input, .editor select, .editor textarea { width: 100%; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 8px; border-radius: 3px; font-size: 13px; margin-bottom: 12px; }',
-      '.editor textarea { min-height: 100px; font-family: monospace; }',
-      '.response { flex: 1; background: #1e1e1e; border-top: 1px solid #3c3c3c; overflow-y: auto; padding: 16px; }',
-      '.response pre { font-family: monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; }',
-      '.status-ok { color: #4ec9b0; }',
-      '.status-error { color: #f44747; }',
-      '.empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #888; font-size: 14px; }',
-      '.loading { color: #0e639c; font-style: italic; }',
-      '.error-msg { color: #f44747; padding: 8px; background: rgba(244, 71, 71, 0.1); border-radius: 3px; margin-bottom: 8px; }',
-      '.delete-btn { background: #c72e2e; color: #fff; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }',
-      '.delete-btn:hover { background: #e04040; }',
-      '.response-actions { display: flex; gap: 8px; margin-bottom: 12px; }',
-      '.response-actions button { background: #2d2d2d; color: #d4d4d4; border: 1px solid #555; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }',
-      '.response-actions button:hover { background: #3c3c3c; border-color: #0e639c; }',
-      '</style>',
-      '</head>',
-      '<body>',
+      ".container { display: flex; height: 100vh; }",
+      ".sidebar { width: 250px; background: #252526; border-right: 1px solid #3c3c3c; overflow-y: auto; }",
+      ".sidebar-header { padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }",
+      ".request-item { padding: 6px 16px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; }",
+      ".request-item:hover { background: #2a2d2e; }",
+      ".request-item.active { background: #37373d; }",
+      ".method-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; min-width: 40px; text-align: center; }",
+      ".method-GET { background: #61affe; color: #fff; }",
+      ".method-POST { background: #49cc90; color: #fff; }",
+      ".method-PUT { background: #fca130; color: #fff; }",
+      ".method-DELETE { background: #f93e3e; color: #fff; }",
+      ".method-PATCH { background: #50e3c2; color: #fff; }",
+      ".main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }",
+      ".toolbar { padding: 8px 16px; background: #2d2d2d; border-bottom: 1px solid #3c3c3c; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }",
+      ".toolbar button { background: #0e639c; color: #fff; border: none; padding: 6px 16px; border-radius: 3px; cursor: pointer; font-size: 13px; }",
+      ".toolbar button:hover { background: #1177bb; }",
+      ".toolbar button:disabled { background: #555; cursor: not-allowed; }",
+      ".toolbar .env-select { background: #3c3c3c; color: #d4d4d4; border: 1px solid #555; padding: 4px 8px; border-radius: 3px; font-size: 12px; }",
+      ".toolbar .history-count { font-size: 12px; color: #888; margin-left: auto; }",
+      ".editor { flex: 1; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }",
+      ".editor label { font-size: 12px; color: #888; margin-bottom: 4px; display: block; }",
+      ".editor input, .editor select, .editor textarea { width: 100%; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 8px; border-radius: 3px; font-size: 13px; margin-bottom: 12px; }",
+      ".editor textarea { min-height: 100px; font-family: monospace; }",
+      ".response { flex: 1; background: #1e1e1e; border-top: 1px solid #3c3c3c; overflow-y: auto; padding: 16px; }",
+      ".response pre { font-family: monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; }",
+      ".status-ok { color: #4ec9b0; }",
+      ".status-error { color: #f44747; }",
+      ".empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #888; font-size: 14px; }",
+      ".loading { color: #0e639c; font-style: italic; }",
+      ".error-msg { color: #f44747; padding: 8px; background: rgba(244, 71, 71, 0.1); border-radius: 3px; margin-bottom: 8px; }",
+      ".delete-btn { background: #c72e2e; color: #fff; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }",
+      ".delete-btn:hover { background: #e04040; }",
+      ".response-actions { display: flex; gap: 8px; margin-bottom: 12px; }",
+      ".response-actions button { background: #2d2d2d; color: #d4d4d4; border: 1px solid #555; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }",
+      ".response-actions button:hover { background: #3c3c3c; border-color: #0e639c; }",
+      "</style>",
+      "</head>",
+      "<body>",
       '<div class="container">',
       '<div class="sidebar">',
       '<div class="sidebar-header">Requests</div>',
       '<div id="requests-list"></div>',
-      '</div>',
+      "</div>",
       '<div class="main">',
       '<div class="toolbar">',
       '<button id="send-btn" disabled>Send</button>',
@@ -501,72 +510,72 @@ export class WebviewManager {
       '<button id="delete-btn" class="delete-btn" style="display:none;">Delete</button>',
       '<select id="env-select" class="env-select" style="display:none;"><option value="">No Env</option></select>',
       '<span class="history-count" id="history-count"></span>',
-      '</div>',
+      "</div>",
       '<div class="editor" id="editor"></div>',
       '<div class="response" id="response"></div>',
-      '</div>',
-      '</div>',
-      '<script>',
-      'const vscode = acquireVsCodeApi();',
+      "</div>",
+      "</div>",
+      "<script>",
+      "const vscode = acquireVsCodeApi();",
       'const sendBtn = document.getElementById("send-btn");',
       'const newBtn = document.getElementById("new-btn");',
       'const deleteBtn = document.getElementById("delete-btn");',
       'const envSelect = document.getElementById("env-select");',
       'const historyCountEl = document.getElementById("history-count");',
-      '',
-      '// Send button handler',
+      "",
+      "// Send button handler",
       'sendBtn?.addEventListener("click", () => {',
-      '  sendBtn.disabled = true;',
+      "  sendBtn.disabled = true;",
       '  sendBtn.textContent = "Sending...";',
       '  vscode.postMessage({ type: "send-request" });',
       "});",
-      '',
-      '// New request button handler',
+      "",
+      "// New request button handler",
       'newBtn?.addEventListener("click", () => {',
       '  vscode.postMessage({ type: "new-request" });',
       "});",
-      '',
-      '// Delete request button handler',
+      "",
+      "// Delete request button handler",
       'deleteBtn?.addEventListener("click", () => {',
       '  if (confirm("Delete this request?")) {',
       '    vscode.postMessage({ type: "delete-request" });',
       "  }",
       "});",
-      '',
-      '// Environment selector handler',
+      "",
+      "// Environment selector handler",
       'envSelect?.addEventListener("change", (e) => {',
-      '  if (e.target.value) {',
+      "  if (e.target.value) {",
       '    vscode.postMessage({ type: "env-file-selected", name: e.target.value });',
       "  }",
       "});",
-      '',
-      '// Listen for messages from the extension',
+      "",
+      "// Listen for messages from the extension",
       'window.addEventListener("message", event => {',
-      '  const message = event.data;',
+      "  const message = event.data;",
       '  if (message.type === "update") {',
-      '    renderSidebar(message.collections);',
-      '    renderEditor(message.request);',
-      '    renderResponse(message.response);',
-      '    if (message.envFiles) {',
-      '      renderEnvSelect(message.envFiles);',
+      "    renderSidebar(message.collections);",
+      "    renderEditor(message.request);",
+      "    renderResponse(message.response);",
+      "    if (message.envFiles) {",
+      "      renderEnvSelect(message.envFiles);",
       "  }",
-      "  } else if (message.type === \"response\") {",
-      '    sendBtn.disabled = false;',
+      '  } else if (message.type === "response") {',
+      "    sendBtn.disabled = false;",
       '    sendBtn.textContent = "Send";',
-      '    renderResponse(message.response);',
-      "  } else if (message.type === \"error\") {",
-      '    sendBtn.disabled = false;',
+      "    renderResponse(message.response);",
+      '  } else if (message.type === "error") {',
+      "    sendBtn.disabled = false;",
       '    sendBtn.textContent = "Send";',
-      '    showError(message.message);',
-      "  } else if (message.type === \"history\") {",
-      '    updateHistoryCount(message.history.length);',
-      "  } else if (message.type === \"env-files\") {",
-      '    renderEnvSelect(message.files);',
+      "    showError(message.message);",
+      '  } else if (message.type === "history") {',
+      "    updateHistoryCount(message.history.length);",
+      '  } else if (message.type === "env-files") {',
+      "    renderEnvSelect(message.files);",
       "  }",
       "});",
-      '',
-      '// Render sidebar with request list',
-      'function renderSidebar(requests) {',
+      "",
+      "// Render sidebar with request list",
+      "function renderSidebar(requests) {",
       '  const list = document.getElementById("requests-list");',
       "  if (!requests || requests.length === 0) {",
       "    list.innerHTML = '<div style=\"padding:12px 16px;color:#888;font-size:12px;\">No requests yet</div>';",
@@ -584,9 +593,9 @@ export class WebviewManager {
       "    });",
       "  });",
       "}",
-      '',
-      '// Render editor with request form',
-      'function renderEditor(request) {',
+      "",
+      "// Render editor with request form",
+      "function renderEditor(request) {",
       '  const editor = document.getElementById("editor");',
       "  if (!request) {",
       "    editor.innerHTML = '<div class=\"empty\">Open a folder to get started</div>';",
@@ -608,7 +617,7 @@ export class WebviewManager {
       "    '<label>Query (JSON)</label>' +",
       "    '<textarea id=\"query\">' + escapeHtml(JSON.stringify(request.query || {}, null, 2)) + '</textarea>' +",
       "    '<label>Body</label>' +",
-      "    '<textarea id=\"body\" placeholder=\"Request body (JSON)\"></textarea>';",
+      '    \'<textarea id="body" placeholder="Request body (JSON)"></textarea>\';',
       "  editor.querySelector('#method')?.addEventListener('change', (e) => {",
       "    vscode.postMessage({ type: 'request-updated', data: { method: e.target.value } });",
       "  });",
@@ -638,9 +647,9 @@ export class WebviewManager {
       "    }",
       "  });",
       "}",
-      '',
-      '// Render response',
-      'function renderResponse(response) {',
+      "",
+      "// Render response",
+      "function renderResponse(response) {",
       '  const el = document.getElementById("response");',
       "  if (!response) {",
       "    el.innerHTML = '<div class=\"empty\">Send a request to see the response</div>';",
@@ -668,15 +677,15 @@ export class WebviewManager {
       "    vscode.postMessage({ type: 'diff-with-history' });",
       "  });",
       "}",
-      '',
-      '// Show error message',
-      'function showError(message) {',
+      "",
+      "// Show error message",
+      "function showError(message) {",
       '  const el = document.getElementById("response");',
       "  el.innerHTML = '<div class=\"error-msg\">' + escapeHtml(message) + '</div>';",
       "}",
-      '',
-      '// Render environment file selector',
-      'function renderEnvSelect(files) {',
+      "",
+      "// Render environment file selector",
+      "function renderEnvSelect(files) {",
       "  if (!files || files.length === 0) {",
       "    envSelect.style.display = 'none';",
       "    return;",
@@ -688,19 +697,19 @@ export class WebviewManager {
       "    }).join('');",
       "  envSelect.innerHTML = options;",
       "}",
-      '',
-      '// Update history count display',
-      'function updateHistoryCount(count) {',
+      "",
+      "// Update history count display",
+      "function updateHistoryCount(count) {",
       "  if (historyCountEl) {",
       "    historyCountEl.textContent = count + ' history entry/entries';",
       "  }",
       "}",
-      '',
-      '// Escape HTML to prevent XSS',
-      'function escapeHtml(str) {',
+      "",
+      "// Escape HTML to prevent XSS",
+      "function escapeHtml(str) {",
       "  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/&gt;/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');",
       "}",
-      '',
+      "",
       "// Initial render",
       "renderSidebar([]);",
       "renderEditor(null);",

@@ -11,7 +11,10 @@ interface ToastProps {
   onDismiss: (id: string) => void;
 }
 
-const TYPE_STYLES: Record<Toast["type"], { bg: string; border: string; text: string; icon: string }> = {
+const TYPE_STYLES: Record<
+  Toast["type"],
+  { bg: string; border: string; text: string; icon: string }
+> = {
   info: {
     bg: "bg-blue-50 dark:bg-blue-900/20",
     border: "border-blue-200 dark:border-blue-800",

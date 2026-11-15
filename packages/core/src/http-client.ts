@@ -17,7 +17,7 @@ export type {
  * Sends an HTTP request and returns the response.
  */
 export async function sendRequest(
-  options: RequestOptions
+  options: RequestOptions,
 ): Promise<Response | ErrorResponse> {
   const startTime = Date.now();
 
@@ -91,7 +91,10 @@ export async function sendRequest(
       };
     }
 
-    if (axiosError.code === "ECONNABORTED" || axiosError.message.includes("timeout")) {
+    if (
+      axiosError.code === "ECONNABORTED" ||
+      axiosError.message.includes("timeout")
+    ) {
       return {
         error: "Request timeout",
         request: options,

@@ -120,8 +120,9 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
     it("registers all expected commands", () => {
       activate(mockContext);
 
-      const registeredCommands = (vscode.commands.registerCommand as any)
-        .mock.calls.map((call: any[]) => call[0]);
+      const registeredCommands = (
+        vscode.commands.registerCommand as any
+      ).mock.calls.map((call: any[]) => call[0]);
 
       const expectedCommands = [
         "sentry-api.openFolder",
@@ -148,8 +149,9 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
     it("registers the correct number of commands", () => {
       activate(mockContext);
 
-      const registeredCommands = (vscode.commands.registerCommand as any)
-        .mock.calls.map((call: any[]) => call[0]);
+      const registeredCommands = (
+        vscode.commands.registerCommand as any
+      ).mock.calls.map((call: any[]) => call[0]);
 
       expect(registeredCommands.length).toBe(14);
     });
@@ -177,7 +179,7 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
         expect.objectContaining({
           enableScripts: true,
           retainContextWhenHidden: true,
-        })
+        }),
       );
     });
   });
@@ -192,7 +194,8 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
       if (calls.length > 0) {
         // Panel was created, check if dispose was called
         // The mock panel's dispose should have been called
-        const mockPanel = (vscode.window.createWebviewPanel as any).mock.results[0].value;
+        const mockPanel = (vscode.window.createWebviewPanel as any).mock
+          .results[0].value;
         expect(mockPanel.dispose).toHaveBeenCalled();
       }
     });
@@ -222,8 +225,9 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
     it("all command IDs are unique", () => {
       activate(mockContext);
 
-      const registeredCommands = (vscode.commands.registerCommand as any)
-        .mock.calls.map((call: any[]) => call[0]);
+      const registeredCommands = (
+        vscode.commands.registerCommand as any
+      ).mock.calls.map((call: any[]) => call[0]);
 
       const uniqueCommands = new Set(registeredCommands);
       expect(uniqueCommands.size).toBe(registeredCommands.length);
@@ -232,8 +236,9 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
     it("no command ID is a prefix of another", () => {
       activate(mockContext);
 
-      const registeredCommands = (vscode.commands.registerCommand as any)
-        .mock.calls.map((call: any[]) => call[0]);
+      const registeredCommands = (
+        vscode.commands.registerCommand as any
+      ).mock.calls.map((call: any[]) => call[0]);
 
       for (const cmd of registeredCommands) {
         for (const other of registeredCommands) {
@@ -247,8 +252,9 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
     it("all command IDs follow the sentry-api prefix convention", () => {
       activate(mockContext);
 
-      const registeredCommands = (vscode.commands.registerCommand as any)
-        .mock.calls.map((call: any[]) => call[0]);
+      const registeredCommands = (
+        vscode.commands.registerCommand as any
+      ).mock.calls.map((call: any[]) => call[0]);
 
       for (const cmd of registeredCommands) {
         expect(cmd).toMatch(/^sentry-api\.[a-zA-Z]+$/);
@@ -261,7 +267,8 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
       activate(mockContext);
 
       // Simulate setting different folder paths
-      const mockPanel = (vscode.window.createWebviewPanel as any).mock.results[0].value;
+      const mockPanel = (vscode.window.createWebviewPanel as any).mock
+        .results[0].value;
       const webviewManager = new WebviewManager(mockContext);
 
       webviewManager.setFolder("/workspace/a");
@@ -279,7 +286,7 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
 
       // Each webview manager has its own history store
       expect(webviewManagerA["_state"].historyStore).not.toBe(
-        webviewManagerB["_state"].historyStore
+        webviewManagerB["_state"].historyStore,
       );
     });
 
@@ -317,8 +324,9 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
     it("does not use common VS Code command names", () => {
       activate(mockContext);
 
-      const registeredCommands = (vscode.commands.registerCommand as any)
-        .mock.calls.map((call: any[]) => call[0]);
+      const registeredCommands = (
+        vscode.commands.registerCommand as any
+      ).mock.calls.map((call: any[]) => call[0]);
 
       const forbiddenNames = [
         "editor.action.formatDocument",
@@ -347,9 +355,18 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
 
       // Should not conflict with common VS Code view IDs
       const commonViewIds = [
-        "explorer", "search", "source-control", "debug", "extensions",
-        "problems", "output", "terminal", "testing", "remote",
-        "git", "markdown.preview",
+        "explorer",
+        "search",
+        "source-control",
+        "debug",
+        "extensions",
+        "problems",
+        "output",
+        "terminal",
+        "testing",
+        "remote",
+        "git",
+        "markdown.preview",
       ];
 
       expect(commonViewIds).not.toContain(viewId);
@@ -360,9 +377,14 @@ describe("Step 13: Extension lifecycle and workspace validation", () => {
 
       // Should not conflict with common webview types
       const commonViewTypes = [
-        "markdown.preview", "html.preview", "git.baseCommit",
-        "git.history", "git.stage", "git.unstage",
-        "testing.view", "debug.console",
+        "markdown.preview",
+        "html.preview",
+        "git.baseCommit",
+        "git.history",
+        "git.stage",
+        "git.unstage",
+        "testing.view",
+        "debug.console",
       ];
 
       expect(commonViewTypes).not.toContain(viewType);

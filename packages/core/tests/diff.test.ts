@@ -9,16 +9,12 @@ describe("diff", () => {
 
   it("should detect a changed primitive value", () => {
     const result = diff(1, 2);
-    expect(result).toEqual([
-      { path: "", old: 1, new: 2, type: "changed" },
-    ]);
+    expect(result).toEqual([{ path: "", old: 1, new: 2, type: "changed" }]);
   });
 
   it("should detect a changed object property", () => {
     const result = diff({ a: 1, b: 2 }, { a: 1, b: 3 });
-    expect(result).toEqual([
-      { path: "b", old: 2, new: 3, type: "changed" },
-    ]);
+    expect(result).toEqual([{ path: "b", old: 2, new: 3, type: "changed" }]);
   });
 
   it("should detect added properties", () => {
@@ -38,7 +34,7 @@ describe("diff", () => {
   it("should detect changes in nested objects", () => {
     const result = diff(
       { user: { name: "John", age: 30 } },
-      { user: { name: "Jane", age: 30 } }
+      { user: { name: "Jane", age: 30 } },
     );
     expect(result).toEqual([
       { path: "user.name", old: "John", new: "Jane", type: "changed" },
@@ -47,9 +43,7 @@ describe("diff", () => {
 
   it("should detect changes in arrays", () => {
     const result = diff([1, 2, 3], [1, 4, 3]);
-    expect(result).toEqual([
-      { path: "[1]", old: 2, new: 4, type: "changed" },
-    ]);
+    expect(result).toEqual([{ path: "[1]", old: 2, new: 4, type: "changed" }]);
   });
 
   it("should detect added array elements", () => {
@@ -67,10 +61,7 @@ describe("diff", () => {
   });
 
   it("should detect multiple changes in an object", () => {
-    const result = diff(
-      { a: 1, b: 2, c: 3 },
-      { a: 10, b: 2, c: 30 }
-    );
+    const result = diff({ a: 1, b: 2, c: 3 }, { a: 10, b: 2, c: 30 });
     expect(result).toEqual([
       { path: "a", old: 1, new: 10, type: "changed" },
       { path: "c", old: 3, new: 30, type: "changed" },
@@ -102,10 +93,7 @@ describe("diff", () => {
   });
 
   it("should handle deeply nested objects", () => {
-    const result = diff(
-      { a: { b: { c: 1 } } },
-      { a: { b: { c: 2 } } }
-    );
+    const result = diff({ a: { b: { c: 1 } } }, { a: { b: { c: 2 } } });
     expect(result).toEqual([
       { path: "a.b.c", old: 1, new: 2, type: "changed" },
     ]);
@@ -113,8 +101,14 @@ describe("diff", () => {
 
   it("should handle arrays of objects", () => {
     const result = diff(
-      [{ id: 1, name: "A" }, { id: 2, name: "B" }],
-      [{ id: 1, name: "A" }, { id: 2, name: "C" }]
+      [
+        { id: 1, name: "A" },
+        { id: 2, name: "B" },
+      ],
+      [
+        { id: 1, name: "A" },
+        { id: 2, name: "C" },
+      ],
     );
     expect(result).toEqual([
       { path: "[1].name", old: "B", new: "C", type: "changed" },
