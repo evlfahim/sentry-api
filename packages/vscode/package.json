@@ -72,9 +72,10 @@
     "lint": "echo 'No lint configured yet'"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
     "@types/node": "^20.11.19",
-    "typescript": "^5.4.0"
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.1"
   },
   "dependencies": {
     "@sentry-api/core": "file:../core"

@@ -6,9 +6,7 @@ import {
   type Response,
   type ErrorResponse,
   type HistoryEntry,
-  type HistoryStore,
   type DiffResult,
-  type Environment,
   createCollection,
   readCollection,
   readRequest,
@@ -36,8 +34,8 @@ let webviewManager: WebviewManager | undefined;
 let historyPanel: HistoryPanel | undefined;
 let diffPanel: DiffPanel | undefined;
 
-// In-memory history store
-const historyStore: HistoryStore = createHistoryStore(1000);
+// In-memory history store (shared between webview and panels)
+const historyStore = createHistoryStore(1000);
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("Sentry API extension is now active");
@@ -58,7 +56,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       if (folderUri && folderUri[0]) {
         const folderPath = folderUri[0].fsPath;
-        await webviewManager?.setFolder(folderPath);
+        webviewManager?.setFolder(folderPath);
         vscode.window.showInformationMessage(
           `Sentry API folder set to: ${folderPath}`
         );
@@ -91,14 +89,14 @@ export function activate(context: vscode.ExtensionContext) {
         updated: new Date().toISOString(),
       };
 
-      // Save request file
+      // Save request file via VS Code workspace API
       const filePath = `${webviewManager.folderPath}/${request.id}.json`;
       await vscode.workspace.fs.writeFile(
         vscode.Uri.file(filePath),
         Buffer.from(JSON.stringify(request, null, 2))
       );
 
-      await webviewManager?.refreshCollections();
+      await webviewManager.refreshCollections();
       vscode.window.showInformationMessage(`Request "${name}" created.`);
     }
   );
@@ -113,66 +111,21 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      // Show the webview so the user can see the response
+      webviewManager.panel.reveal(vscode.ViewColumn.Two);
+
+      // If there's a current request, send it via the webview
       const requestFile = await webviewManager.getCurrentRequest();
       if (!requestFile) {
         vscode.window.showErrorMessage("No request selected.");
         return;
       }
 
-      try {
-        // Interpolate environment variables
-        let envVars: Record<string, string> = {};
-        if (webviewManager.activeEnvFile) {
-          const envFile = readEnvFile(
-            `${webviewManager.folderPath}/${webviewManager.activeEnvFile}`
-          );
-          envVars = envFile.values;
-        }
+      // Set the current request in the webview manager
+      webviewManager.setCurrentRequest(requestFile);
 
-        const options: RequestOptions = {
-          method: requestFile.method,
-          url: interpolate(requestFile.url, envVars),
-          headers: requestFile.headers
-            ? Object.fromEntries(
-                Object.entries(requestFile.headers).map(([k, v]) => [
-                  k,
-                  interpolate(v, envVars),
-                ])
-              )
-            : undefined,
-          query: requestFile.query
-            ? Object.fromEntries(
-                Object.entries(requestFile.query).map(([k, v]) => [
-                  k,
-                  interpolate(String(v), envVars),
-                ])
-              )
-            : undefined,
-          body: requestFile.body,
-        };
-
-        const result = await sendRequest(options);
-
-        if (isErrorResponse(result)) {
-          vscode.window.showErrorMessage(
-            `Request failed: ${result.error}${result.details ? ` - ${JSON.stringify(result.details)}` : ""}`
-          );
-          return;
-        }
-
-        const response = result as Response;
-
-        // Add to history
-        addToHistory(historyStore, options, response);
-
-        await webviewManager?.showResponse(response);
-        vscode.window.showInformationMessage(
-          `Request completed with status ${response.status}`
-        );
-      } catch (error) {
-        const err = error as Error;
-        vscode.window.showErrorMessage(`Request failed: ${err.message}`);
-      }
+      // Send the request via the webview bridge
+      webviewManager.postMessage({ type: "send-request" });
     }
   );
 
@@ -290,7 +243,7 @@ export function activate(context: vscode.ExtensionContext) {
           ? Object.fromEntries(
               Object.entries(requestFile.query).map(([k, v]) => [
                 k,
-                interpolate(v, envVars),
+                interpolate(String(v), envVars),
               ])
             )
           : undefined,
