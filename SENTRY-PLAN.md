@@ -41,5 +41,5 @@ Core logic resides in `packages/core` as a pure TypeScript library; the VS Code 
 - [x] 11. Integrate VS Code file system APIs with core library; enable opening folders and saving requests directly from the plugin.
 - [x] 12. Add history and diff features to the VS Code webview; test replay and diff rendering within the editor context.
 - [x] 13. Validate VS Code plugin functionality across different workspaces; ensure no conflicts with existing extensions.
-- [ ] 14. Write comprehensive README with setup instructions, usage examples, and guide for converting the core to a plugin.
+- [x] 14. Write comprehensive README with setup instructions, usage examples, and guide for converting the core to a plugin.
 - [ ] 15. Run full lint, format, and build pipeline; verify all packages compile and tests pass.
