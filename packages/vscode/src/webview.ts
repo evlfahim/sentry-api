@@ -213,6 +213,18 @@ export async function handleWebviewMessage(
       break;
     }
 
+    case "view-history": {
+      // Notify the extension to open the history panel
+      actions.push({ type: "view-history" });
+      break;
+    }
+
+    case "diff-with-history": {
+      // Notify the extension to open the diff panel with current response
+      actions.push({ type: "diff-with-history", response: state.response });
+      break;
+    }
+
     default:
       console.log("Unknown message type:", message.type);
   }
@@ -391,10 +403,19 @@ export class WebviewManager {
 
       case "history":
         this.postMessage({ type: "history", history: action.history });
+        this.updateContent();
         break;
 
       case "env-files":
         this.postMessage({ type: "env-files", files: action.files });
+        break;
+
+      case "view-history":
+        vscode.commands.executeCommand("sentry-api.viewHistory");
+        break;
+
+      case "diff-with-history":
+        vscode.commands.executeCommand("sentry-api.diffWithHistory", action.response);
         break;
 
       default:
@@ -413,6 +434,7 @@ export class WebviewManager {
     const responseData = this._state.response
       ? JSON.stringify(this._state.response)
       : "null";
+    const historyCount = this._state.historyStore.entries.length;
 
     const html = [
       '<!DOCTYPE html>',
@@ -442,11 +464,12 @@ export class WebviewManager {
       '.method-DELETE { background: #f93e3e; color: #fff; }',
       '.method-PATCH { background: #50e3c2; color: #fff; }',
       '.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }',
-      '.toolbar { padding: 8px 16px; background: #2d2d2d; border-bottom: 1px solid #3c3c3c; display: flex; gap: 8px; align-items: center; }',
+      '.toolbar { padding: 8px 16px; background: #2d2d2d; border-bottom: 1px solid #3c3c3c; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }',
       '.toolbar button { background: #0e639c; color: #fff; border: none; padding: 6px 16px; border-radius: 3px; cursor: pointer; font-size: 13px; }',
       '.toolbar button:hover { background: #1177bb; }',
       '.toolbar button:disabled { background: #555; cursor: not-allowed; }',
       '.toolbar .env-select { background: #3c3c3c; color: #d4d4d4; border: 1px solid #555; padding: 4px 8px; border-radius: 3px; font-size: 12px; }',
+      '.toolbar .history-count { font-size: 12px; color: #888; margin-left: auto; }',
       '.editor { flex: 1; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }',
       '.editor label { font-size: 12px; color: #888; margin-bottom: 4px; display: block; }',
       '.editor input, .editor select, .editor textarea { width: 100%; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 8px; border-radius: 3px; font-size: 13px; margin-bottom: 12px; }',
@@ -460,6 +483,9 @@ export class WebviewManager {
       '.error-msg { color: #f44747; padding: 8px; background: rgba(244, 71, 71, 0.1); border-radius: 3px; margin-bottom: 8px; }',
       '.delete-btn { background: #c72e2e; color: #fff; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }',
       '.delete-btn:hover { background: #e04040; }',
+      '.response-actions { display: flex; gap: 8px; margin-bottom: 12px; }',
+      '.response-actions button { background: #2d2d2d; color: #d4d4d4; border: 1px solid #555; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }',
+      '.response-actions button:hover { background: #3c3c3c; border-color: #0e639c; }',
       '</style>',
       '</head>',
       '<body>',
@@ -474,6 +500,7 @@ export class WebviewManager {
       '<button id="new-btn">New Request</button>',
       '<button id="delete-btn" class="delete-btn" style="display:none;">Delete</button>',
       '<select id="env-select" class="env-select" style="display:none;"><option value="">No Env</option></select>',
+      '<span class="history-count" id="history-count"></span>',
       '</div>',
       '<div class="editor" id="editor"></div>',
       '<div class="response" id="response"></div>',
@@ -485,6 +512,7 @@ export class WebviewManager {
       'const newBtn = document.getElementById("new-btn");',
       'const deleteBtn = document.getElementById("delete-btn");',
       'const envSelect = document.getElementById("env-select");',
+      'const historyCountEl = document.getElementById("history-count");',
       '',
       '// Send button handler',
       'sendBtn?.addEventListener("click", () => {',
@@ -531,7 +559,7 @@ export class WebviewManager {
       '    sendBtn.textContent = "Send";',
       '    showError(message.message);',
       "  } else if (message.type === \"history\") {",
-      '    console.log("History received:", message.history.length, "entries");',
+      '    updateHistoryCount(message.history.length);',
       "  } else if (message.type === \"env-files\") {",
       '    renderEnvSelect(message.files);',
       "  }",
@@ -624,8 +652,21 @@ export class WebviewManager {
       "    return;",
       "  }",
       "  var cls = response.status >= 200 && response.status < 300 ? 'status-ok' : 'status-error';",
-      "  el.innerHTML = '<div style=\"margin-bottom:8px;\"><span class=\"' + cls + '\">' + response.status + ' ' + escapeHtml(response.statusText) + '</span> · ' + response.duration + 'ms</div>' +",
-      "    '<pre>' + (typeof response.data === 'string' ? escapeHtml(response.data) : escapeHtml(JSON.stringify(response.data, null, 2))) + '</pre>';",
+      "  var responseHtml = '<div style=\"margin-bottom:8px;\"><span class=\"' + cls + '\">' + response.status + ' ' + escapeHtml(response.statusText) + '</span> · ' + response.duration + 'ms</div>';",
+      "  responseHtml += '<pre>' + (typeof response.data === 'string' ? escapeHtml(response.data) : escapeHtml(JSON.stringify(response.data, null, 2))) + '</pre>';",
+      "  // Step 12: Add history and diff action buttons",
+      "  responseHtml += '<div class=\"response-actions\">' +",
+      "    '<button id=\"view-history-btn\">View History</button>' +",
+      "    '<button id=\"diff-btn\">Diff with History</button>' +",
+      "    '</div>';",
+      "  el.innerHTML = responseHtml;",
+      "  // Attach click handlers for the new buttons",
+      "  document.getElementById('view-history-btn')?.addEventListener('click', () => {",
+      "    vscode.postMessage({ type: 'view-history' });",
+      "  });",
+      "  document.getElementById('diff-btn')?.addEventListener('click', () => {",
+      "    vscode.postMessage({ type: 'diff-with-history' });",
+      "  });",
       "}",
       '',
       '// Show error message',
@@ -648,9 +689,16 @@ export class WebviewManager {
       "  envSelect.innerHTML = options;",
       "}",
       '',
+      '// Update history count display',
+      'function updateHistoryCount(count) {',
+      "  if (historyCountEl) {",
+      "    historyCountEl.textContent = count + ' history entry/entries';",
+      "  }",
+      "}",
+      '',
       '// Escape HTML to prevent XSS',
       'function escapeHtml(str) {',
-      "  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');",
+      "  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/&gt;/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');",
       "}",
       '',
       "// Initial render",

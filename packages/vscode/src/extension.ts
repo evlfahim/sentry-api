@@ -134,6 +134,40 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  /**
+   * Step 12: Replay a request from history.
+   * Receives request data from the history panel and sends it through the webview.
+   */
+  const replayFromHistoryCmd = vscode.commands.registerCommand(
+    "sentry-api.replayFromHistory",
+    async (request: RequestOptions) => {
+      if (!webviewManager?.folderPath) {
+        vscode.window.showErrorMessage(
+          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+        );
+        return;
+      }
+
+      // Show the main webview
+      webviewManager.panel.reveal(vscode.ViewColumn.Two);
+
+      // Update the current request in the webview with the replayed request data
+      webviewManager.setCurrentRequest({
+        id: `replay-${Date.now()}`,
+        name: `Replay: ${request.method} ${request.url}`,
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+        query: request.query,
+        body: request.body,
+        updated: new Date().toISOString(),
+      });
+
+      // Send the request via the webview bridge
+      webviewManager.postMessage({ type: "send-request" });
+    }
+  );
+
   const viewHistoryCmd = vscode.commands.registerCommand(
     "sentry-api.viewHistory",
     async () => {
@@ -205,7 +239,95 @@ export function activate(context: vscode.ExtensionContext) {
         diffPanel = new DiffPanel(context.extensionUri);
       }
 
-      diffPanel.show(diffResult);
+      diffPanel.show(
+        diffResult,
+        first.entry.response.data,
+        second.entry.response.data,
+        `#${first.index + 1} - ${first.entry.request.method} ${first.entry.request.url}`,
+        `#${second.index + 1} - ${second.entry.request.method} ${second.entry.request.url}`
+      );
+    }
+  );
+
+  /**
+   * Step 12: Diff the current response with a selected history entry.
+   * Available from the webview when a response is displayed.
+   */
+  const diffWithHistoryCmd = vscode.commands.registerCommand(
+    "sentry-api.diffWithHistory",
+    async (currentResponse?: Response | ErrorResponse) => {
+      if (!webviewManager?.folderPath) {
+        vscode.window.showErrorMessage(
+          "No API folder selected. Use 'Sentry API: Open API Folder' first."
+        );
+        return;
+      }
+
+      const history = historyStore.entries;
+      if (history.length < 1) {
+        vscode.window.showWarningMessage(
+          "No history entries to diff against."
+        );
+        return;
+      }
+
+      // Use the current response (if provided and valid) or the last history entry as the "current" response
+      const currentData =
+        currentResponse && !isErrorResponse(currentResponse)
+          ? currentResponse.data
+          : history[0].response.data;
+
+      if (history.length < 2) {
+        // Only one history entry, diff current with the only entry
+        if (currentData === undefined) {
+          vscode.window.showWarningMessage(
+            "No response to diff. Send a request first."
+          );
+          return;
+        }
+        const secondEntry = history[0];
+        const diffResult = diff(currentData, secondEntry.response.data);
+
+        if (!diffPanel) {
+          diffPanel = new DiffPanel(context.extensionUri);
+        }
+
+        diffPanel.show(
+          diffResult,
+          currentData,
+          secondEntry.response.data,
+          "Current Response",
+          `#${1} - ${secondEntry.request.method} ${secondEntry.request.url}`
+        );
+        return;
+      }
+
+      // Multiple history entries: let user pick one to diff with current
+      const historyItems = history.map((entry, index) => ({
+        label: `#${index + 1} - ${entry.request.method} ${entry.request.url} (${entry.response.status})`,
+        description: new Date(entry.timestamp).toLocaleString(),
+        entry,
+        index,
+      }));
+
+      const selected = await vscode.window.showQuickPick(historyItems, {
+        placeHolder: "Select a history entry to diff with current response",
+      });
+      if (!selected) return;
+
+      const diffResult = diff(currentData, selected.entry.response.data);
+
+      if (!diffPanel) {
+        diffPanel = new DiffPanel(context.extensionUri);
+      }
+
+      diffPanel.show(
+        diffResult,
+        currentData,
+        selected.entry.response.data,
+        "Current Response",
+        `#${selected.index + 1} - ${selected.entry.request.method} ${selected.entry.request.url}`
+      );
     }
   );
 
@@ -486,8 +608,10 @@ export function activate(context: vscode.ExtensionContext) {
     openFolderCmd,
     newRequestCmd,
     sendRequestCmd,
+    replayFromHistoryCmd,
     viewHistoryCmd,
     diffResponsesCmd,
+    diffWithHistoryCmd,
     exportCurlCmd,
     openCollectionCmd,
     saveRequestCmd,
@@ -496,8 +620,4 @@ export function activate(context: vscode.ExtensionContext) {
     openRequestFileCmd,
     watchFilesCmd
   );
-}
-
-export function deactivate() {
-  console.log("Sentry API extension is now deactivated");
 }

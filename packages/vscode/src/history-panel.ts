@@ -1,13 +1,15 @@
 import * as vscode from "vscode";
-import type { HistoryEntry } from "@sentry-api/core";
+import type { HistoryEntry, RequestOptions } from "@sentry-api/core";
 
 /**
  * A VS Code view that displays request history entries.
  * Users can click an entry to see details or replay it.
+ * Supports search filtering and replay with full request data.
  */
 export class HistoryPanel {
   private panel: vscode.WebviewPanel | undefined;
   private _history: HistoryEntry[] = [];
+  private _searchText: string = "";
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -32,9 +34,19 @@ export class HistoryPanel {
     });
 
     this.panel.webview.onDidReceiveMessage(
-      async (message: any) => {
+      async (message: { type: string; index?: number; searchText?: string }) => {
         if (message.type === "replay") {
-          vscode.commands.executeCommand("sentry-api.sendRequest");
+          const idx = message.index;
+          if (idx !== undefined && idx >= 0 && idx < this._history.length) {
+            const entry = this._history[idx];
+            // Send the request data back to the extension for replay
+            vscode.commands.executeCommand("sentry-api.replayFromHistory", {
+              request: entry.request,
+            });
+          }
+        } else if (message.type === "search") {
+          this._searchText = message.searchText ?? "";
+          this.updateContent();
         }
       },
       undefined
@@ -48,11 +60,29 @@ export class HistoryPanel {
     this.updateContent();
   }
 
+  setSearchText(text: string): void {
+    this._searchText = text;
+    this.updateContent();
+  }
+
+  getFilteredHistory(): HistoryEntry[] {
+    if (!this._searchText) {
+      return this._history;
+    }
+    const lower = this._searchText.toLowerCase();
+    return this._history.filter(
+      (entry) =>
+        entry.request.url.toLowerCase().includes(lower) ||
+        entry.request.method.toLowerCase().includes(lower) ||
+        entry.response.status.toString().includes(lower)
+    );
+  }
+
   private updateContent(): void {
     if (!this.panel) return;
 
     const cspSource = this.panel.webview.cspSource;
-    const historyJson = JSON.stringify(this._history);
+    const historyJson = JSON.stringify(this.getFilteredHistory());
 
     const html = [
       '<!DOCTYPE html>',
@@ -67,10 +97,22 @@ export class HistoryPanel {
         ';">',
       '<title>Request History</title>',
       '<style>',
-      '* { margin: 0; padding: 0; box-sizing: border-box; }',
+      "* { margin: 0; padding: 0; box-sizing: border-box; }",
       'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1e1e; color: #d4d4d4; }',
       '.container { padding: 16px; }',
       'h2 { font-size: 16px; margin-bottom: 12px; color: #ccc; }',
+      '.search-bar { margin-bottom: 12px; }',
+      '.search-bar input {',
+      "  width: 100%;",
+      "  background: #3c3c3c;",
+      "  border: 1px solid #555;",
+      "  color: #d4d4d4;",
+      "  padding: 6px 10px;",
+      "  border-radius: 3px;",
+      "  font-size: 13px;",
+      "}",
+      '.search-bar input:focus { outline: none; border-color: #0e639c; }',
+      '.history-count { font-size: 12px; color: #888; margin-bottom: 8px; }',
       '.history-item { background: #252526; border: 1px solid #3c3c3c; border-radius: 4px; padding: 12px; margin-bottom: 8px; cursor: pointer; }',
       '.history-item:hover { background: #2a2d2e; border-color: #0e639c; }',
       '.history-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }',
@@ -85,25 +127,43 @@ export class HistoryPanel {
       '.status-error { color: #f44747; }',
       '.url { font-size: 13px; color: #9cdcfe; word-break: break-all; }',
       '.timestamp { font-size: 11px; color: #888; margin-top: 4px; }',
+      '.replay-btn { font-size: 11px; color: #0e639c; background: none; border: 1px solid #0e639c; padding: 2px 8px; border-radius: 3px; cursor: pointer; margin-left: auto; }',
+      '.replay-btn:hover { background: #0e639c; color: #fff; }',
       '.empty { color: #888; font-size: 14px; text-align: center; padding: 40px 0; }',
       '</style>',
       '</head>',
       '<body>',
       '<div class="container">',
       '<h2>Request History</h2>',
+      '<div class="search-bar">',
+      '<input type="text" id="search-input" placeholder="Search history...">',
+      '</div>',
+      '<div class="history-count" id="history-count"></div>',
       '<div id="history-list"></div>',
       '</div>',
       '<script>',
       'const vscode = acquireVsCodeApi();',
       'const historyList = document.getElementById("history-list");',
+      'const historyCount = document.getElementById("history-count");',
+      'const searchInput = document.getElementById("search-input");',
+      '',
+      '// Listen for updates from the extension',
       'window.addEventListener("message", event => {',
       '  const message = event.data;',
       '  if (message.type === "update") {',
       '    renderHistory(message.history);',
       "  }",
       "});",
+      '',
+      '// Search input handler',
+      'searchInput?.addEventListener("input", (e) => {',
+      '  vscode.postMessage({ type: "search", searchText: e.target.value });',
+      "});",
+      '',
       'function renderHistory(history) {',
-      "  if (!history || history.length === 0) {",
+      "  if (!history) return;",
+      "  historyCount.textContent = history.length + ' entry/entries';",
+      "  if (history.length === 0) {",
       "    historyList.innerHTML = '<div class=\"empty\">No history entries yet</div>';",
       "    return;",
       "  }",
@@ -114,20 +174,29 @@ export class HistoryPanel {
       "        '<span class=\"method-badge method-' + entry.request.method + '\">' + entry.request.method + '</span>' +",
       "        '<span class=\"status-badge ' + cls + '\">' + entry.response.status + '</span>' +",
       "        '<span style=\"font-size:12px;color:#888;\">' + entry.response.duration + 'ms</span>' +",
+      "        '<button class=\"replay-btn\" data-index=\"' + index + '\">Replay</button>' +",
       "      '</div>' +",
-      "      '<div class=\"url\">' + entry.request.url + '</div>' +",
+      "      '<div class=\"url\">' + escapeHtml(entry.request.url) + '</div>' +",
       "      '<div class=\"timestamp\">' + new Date(entry.timestamp).toLocaleString() + '</div>' +",
       "    '</div>';",
       "  }).join('');",
       "  historyList.querySelectorAll('.history-item').forEach(function(item) {",
-      "    item.addEventListener('click', function() {",
+      "    item.addEventListener('click', function(e) {",
+      "      if (e.target.classList.contains('replay-btn')) return;",
       "      var index = parseInt(item.dataset.index);",
       "      vscode.postMessage({ type: 'replay', index: index });",
       "    });",
       "  });",
+      "  historyList.querySelectorAll('.replay-btn').forEach(function(btn) {",
+      "    btn.addEventListener('click', function(e) {",
+      "      e.stopPropagation();",
+      "      var index = parseInt(btn.dataset.index);",
+      "      vscode.postMessage({ type: 'replay', index: index });",
+      "    });",
+      "  });",
       "}",
-      "// Initial render",
-      "renderHistory([]);",
+      '// Initial render',
+      'renderHistory([]);',
       "</script>",
       "</body>",
       "</html>",
