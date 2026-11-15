@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@sentry-api/core": "file:../core",
+    "@tauri-apps/plugin-dialog": "^2.8.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

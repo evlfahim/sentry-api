@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
-import type { RequestFile, HistoryEntry } from "@sentry-api/core";
+import type { RequestFile, HistoryEntry, Response, ErrorResponse } from "@sentry-api/core";
+import { sendRequest, createHistoryStore, addToHistory, listCollections } from "@sentry-api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export interface AppState {
   darkMode: boolean;
@@ -13,6 +15,8 @@ export interface AppState {
   response: { status: number; statusText: string; headers: Record<string, string>; data: unknown; duration: number } | null;
   loading: boolean;
   error: string | null;
+  collections: { id: string; name: string; requests: RequestFile[] }[];
+  basePath: string | null;
 }
 
 export default function App() {
@@ -24,6 +28,108 @@ export default function App() {
   const [response, setResponse] = useState<AppState["response"]>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [collections, setCollections] = useState<AppState["collections"]>([]);
+  const [basePath, setBasePath] = useState<string | null>(null);
+
+  // Persist history store across renders (not serialised, lives in memory)
+  const historyStoreRef = useRef(createHistoryStore());
+
+  /** Load collections from a folder on disk via the core library. */
+  const loadCollections = useCallback((folderPath: string) => {
+    try {
+      const loaded = listCollections(folderPath);
+      setCollections(loaded);
+      setBasePath(folderPath);
+      // Clear selection when switching folders
+      setSelectedCollectionId(null);
+      setSelectedRequestId(null);
+      setRequests([]);
+      setResponse(null);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  /** Open a folder picker (Tauri) and load collections from the chosen path. */
+  const handleOpenFolder = useCallback(async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+      });
+      if (typeof selected === "string") {
+        loadCollections(selected);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [loadCollections]);
+
+  /** Send a request through the core library and update response + history. */
+  const handleSend = useCallback(async (request: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+    query?: Record<string, string>;
+    body?: unknown;
+  }) => {
+    setLoading(true);
+    setError(null);
+    setResponse(null);
+
+    try {
+      const result = await sendRequest({
+        method: request.method as RequestFile["method"],
+        url: request.url,
+        headers: request.headers,
+        query: request.query,
+        body: request.body,
+      });
+
+      if ("error" in result) {
+        // Core returned an ErrorResponse
+        const errResp = result as ErrorResponse;
+        setError(errResp.error);
+        setResponse(null);
+      } else {
+        // Core returned a successful Response
+        const resp = result as Response;
+        setResponse({
+          status: resp.status,
+          statusText: resp.statusText,
+          headers: resp.headers,
+          data: resp.data,
+          duration: resp.duration,
+        });
+
+        // Persist to history
+        const entry = addToHistory(
+          historyStoreRef.current,
+          {
+            method: request.method as RequestFile["method"],
+            url: request.url,
+            headers: request.headers,
+            query: request.query,
+            body: request.body,
+          },
+          resp
+        );
+        setHistory([...historyStoreRef.current.entries]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [historyStoreRef]);
+
+  /** Select a request from the sidebar and populate the editor. */
+  const handleSelectRequest = useCallback((id: string) => {
+    setSelectedRequestId(id);
+    setResponse(null);
+    setError(null);
+  }, []);
 
   return (
     <div className={darkMode ? "dark" : ""}>
@@ -46,15 +152,12 @@ export default function App() {
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
           <Sidebar
-            collections={[]}
+            collections={collections}
             selectedCollectionId={selectedCollectionId}
             selectedRequestId={selectedRequestId}
             onSelectCollection={setSelectedCollectionId}
-            onSelectRequest={(id) => {
-              setSelectedRequestId(id);
-              setResponse(null);
-              setError(null);
-            }}
+            onSelectRequest={handleSelectRequest}
+            onOpenFolder={handleOpenFolder}
           />
 
           {/* Request Editor */}
@@ -64,25 +167,7 @@ export default function App() {
                 ? requests.find((r) => r.id === selectedRequestId)
                 : undefined
             }
-            onSend={async (request) => {
-              setLoading(true);
-              setError(null);
-              try {
-                // Placeholder: will connect to core library in step 6
-                await new Promise((r) => setTimeout(r, 300));
-                setResponse({
-                  status: 200,
-                  statusText: "OK",
-                  headers: { "content-type": "application/json" },
-                  data: { message: "Hello from Sentry API" },
-                  duration: 42,
-                });
-              } catch (err) {
-                setError(err instanceof Error ? err.message : String(err));
-              } finally {
-                setLoading(false);
-              }
-            }}
+            onSend={handleSend}
             loading={loading}
           />
 
@@ -96,7 +181,7 @@ export default function App() {
 
         {/* Bottom bar */}
         <footer className="h-6 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center px-3 text-xs text-gray-500 dark:text-gray-400 shrink-0">
-          <span>{requests.length} requests · {history.length} history entries</span>
+          <span>{collections.length} collections · {history.length} history entries</span>
         </footer>
       </div>
     </div>

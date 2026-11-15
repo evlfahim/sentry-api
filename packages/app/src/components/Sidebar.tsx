@@ -6,6 +6,7 @@ interface SidebarProps {
   selectedRequestId: string | null;
   onSelectCollection: (id: string | null) => void;
   onSelectRequest: (id: string) => void;
+  onOpenFolder: () => void;
 }
 
 export default function Sidebar({
@@ -14,6 +15,7 @@ export default function Sidebar({
   selectedRequestId,
   onSelectCollection,
   onSelectRequest,
+  onOpenFolder,
 }: SidebarProps) {
   return (
     <aside className="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
@@ -96,7 +98,10 @@ export default function Sidebar({
 
       {/* Bottom actions */}
       <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-2">
-        <button className="w-full text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-left">
+        <button
+          onClick={onOpenFolder}
+          className="w-full text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-left"
+        >
           📂 Open Folder
         </button>
       </div>
