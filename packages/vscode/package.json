@@ -1,0 +1,80 @@
+{
+  "name": "sentry-api-vscode",
+  "displayName": "Sentry API",
+  "description": "A git-native REST API client with file-based collections, response diffing, and environment management.",
+  "version": "0.1.0",
+  "publisher": "sentry-api",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sentry-api.openFolder",
+        "title": "Sentry API: Open API Folder",
+        "category": "Sentry API"
+      },
+      {
+        "command": "sentry-api.newRequest",
+        "title": "Sentry API: New Request",
+        "category": "Sentry API"
+      },
+      {
+        "command": "sentry-api.sendRequest",
+        "title": "Sentry API: Send Request",
+        "category": "Sentry API"
+      },
+      {
+        "command": "sentry-api.viewHistory",
+        "title": "Sentry API: View History",
+        "category": "Sentry API"
+      },
+      {
+        "command": "sentry-api.diffResponses",
+        "title": "Sentry API: Diff Responses",
+        "category": "Sentry API"
+      },
+      {
+        "command": "sentry-api.exportCurl",
+        "title": "Sentry API: Export cURL",
+        "category": "Sentry API"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "sentry-api-explorer",
+          "name": "Sentry API"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "sentry-api.newRequest",
+          "when": "view == sentry-api-explorer",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npm run compile",
+    "lint": "echo 'No lint configured yet'"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.19",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@sentry-api/core": "file:../core"
+  }
+}
