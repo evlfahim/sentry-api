@@ -4,15 +4,12 @@ import {
   type RequestFile,
   type Response,
   type ErrorResponse,
-  readRequest,
-  updateRequest,
-  listCollections,
-  sendRequest as coreSendRequest,
-  interpolate,
   createHistoryStore,
   addToHistory,
   isErrorResponse,
+  interpolate,
 } from "@sentry-api/core";
+import { VsCodeFileSystem } from "./vscode-fs";
 
 /**
  * Message types that flow between the webview and the extension.
@@ -43,34 +40,54 @@ export async function handleWebviewMessage(
   switch (message.type) {
     case "folder-selected": {
       state.folderPath = message.path;
-      const collections = listCollections(message.path);
-      actions.push({ type: "update", collections, request: state.currentRequest, response: state.response, envFiles: [] });
+      if (state.fs) {
+        state.collections = await state.fs.listCollections();
+      }
+      actions.push({
+        type: "update",
+        collections: state.collections,
+        request: state.currentRequest,
+        response: state.response,
+        envFiles: [],
+      });
       break;
     }
 
     case "request-selected": {
-      if (state.folderPath) {
-        const request = readRequest(state.folderPath, message.id);
+      if (state.fs && state.folderPath) {
+        const request = await state.fs.readRequest(message.id);
         if (request) {
           state.currentRequest = request;
           state.response = undefined;
-          actions.push({ type: "update", collections: state.collections, request, response: undefined, envFiles: [] });
+          actions.push({
+            type: "update",
+            collections: state.collections,
+            request,
+            response: undefined,
+            envFiles: [],
+          });
         }
       }
       break;
     }
 
     case "request-updated": {
-      if (state.folderPath && state.currentRequest) {
+      if (state.fs && state.currentRequest) {
         state.currentRequest = {
           ...state.currentRequest,
           ...message.data,
           updated: new Date().toISOString(),
         };
         if (state.currentRequest) {
-          updateRequest(state.folderPath, state.currentRequest);
+          await state.fs.updateRequest(state.currentRequest);
         }
-        actions.push({ type: "update", collections: state.collections, request: state.currentRequest, response: state.response, envFiles: [] });
+        actions.push({
+          type: "update",
+          collections: state.collections,
+          request: state.currentRequest,
+          response: state.response,
+          envFiles: [],
+        });
       }
       break;
     }
@@ -81,7 +98,7 @@ export async function handleWebviewMessage(
     }
 
     case "new-request": {
-      if (state.folderPath) {
+      if (state.fs && state.folderPath) {
         const request: RequestFile = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           name: message.name || "New Request",
@@ -89,25 +106,33 @@ export async function handleWebviewMessage(
           url: "",
           updated: new Date().toISOString(),
         };
-        // Note: file writing is handled by the caller via VS Code API
+        await state.fs.createRequest(request);
         state.currentRequest = request;
-        const collections = listCollections(state.folderPath);
-        actions.push({ type: "update", collections, request, response: state.response, envFiles: [] });
+        state.collections = await state.fs.listCollections();
+        actions.push({
+          type: "update",
+          collections: state.collections,
+          request,
+          response: state.response,
+          envFiles: [],
+        });
       }
       break;
     }
 
     case "send-request": {
       if (!state.folderPath || !state.currentRequest) {
-        actions.push({ type: "error", message: "No request selected or folder not set." });
+        actions.push({
+          type: "error",
+          message: "No request selected or folder not set.",
+        });
         break;
       }
 
       try {
         let envVars: Record<string, string> = {};
-        if (state.activeEnvFile) {
-          // Env file reading is handled by the caller
-          // For now, envVars stays empty in this pure function
+        if (state.activeEnvFile && state.fs) {
+          envVars = await state.fs.readEnvFile(state.activeEnvFile);
         }
 
         const options = {
@@ -115,28 +140,34 @@ export async function handleWebviewMessage(
           url: interpolate(state.currentRequest.url, envVars),
           headers: state.currentRequest.headers
             ? Object.fromEntries(
-                Object.entries(state.currentRequest.headers).map(([k, v]) => [
-                  k,
-                  interpolate(v, envVars),
-                ])
+                Object.entries(state.currentRequest.headers).map(
+                  ([k, v]) => [k, interpolate(v, envVars)]
+                )
               )
             : undefined,
           query: state.currentRequest.query
             ? Object.fromEntries(
-                Object.entries(state.currentRequest.query).map(([k, v]) => [
-                  k,
-                  interpolate(String(v), envVars),
-                ])
+                Object.entries(state.currentRequest.query).map(
+                  ([k, v]) => [k, interpolate(String(v), envVars)]
+                )
               )
             : undefined,
           body: state.currentRequest.body,
         };
 
+        const { sendRequest: coreSendRequest } = await import(
+          "@sentry-api/core"
+        );
         const result = await coreSendRequest(options);
 
         if (isErrorResponse(result)) {
           state.response = result;
-          actions.push({ type: "error", message: `Request failed: ${result.error}${result.details ? ` - ${JSON.stringify(result.details)}` : ""}` });
+          actions.push({
+            type: "error",
+            message: `Request failed: ${result.error}${
+              result.details ? ` - ${JSON.stringify(result.details)}` : ""
+            }`,
+          });
         } else {
           const response = result as Response;
           state.response = response;
@@ -156,8 +187,29 @@ export async function handleWebviewMessage(
     }
 
     case "get-env-files": {
-      // Env file listing is handled by the caller via VS Code API
-      // This pure function doesn't have access to the file system
+      if (state.fs) {
+        const files = await state.fs.listEnvFiles();
+        actions.push({ type: "env-files", files });
+      }
+      break;
+    }
+
+    case "delete-request": {
+      if (state.fs && state.currentRequest) {
+        const deleted = await state.fs.deleteRequest(state.currentRequest.id);
+        if (deleted) {
+          state.currentRequest = undefined;
+          state.response = undefined;
+          state.collections = await state.fs.listCollections();
+          actions.push({
+            type: "update",
+            collections: state.collections,
+            request: undefined,
+            response: undefined,
+            envFiles: [],
+          });
+        }
+      }
       break;
     }
 
@@ -178,6 +230,7 @@ export interface WebviewState {
   response: Response | ErrorResponse | undefined;
   collections: Collection[];
   historyStore: ReturnType<typeof createHistoryStore>;
+  fs: VsCodeFileSystem | undefined;
 }
 
 /**
@@ -205,6 +258,7 @@ export class WebviewManager {
       response: undefined,
       collections: [],
       historyStore: createHistoryStore(1000),
+      fs: undefined,
     };
 
     this.panel = vscode.window.createWebviewPanel(
@@ -239,8 +293,14 @@ export class WebviewManager {
     return this._state.folderPath;
   }
 
+  /**
+   * Sets the API folder and initializes the VS Code file system adapter.
+   * This is the key integration point for step 11: opening folders via
+   * VS Code's workspace APIs and using vscode.workspace.fs for all file ops.
+   */
   setFolder(path: string): void {
     this._state.folderPath = path;
+    this._state.fs = new VsCodeFileSystem(vscode.Uri.file(path));
     this.refreshCollections();
   }
 
@@ -265,15 +325,12 @@ export class WebviewManager {
       return this._state.currentRequest;
     }
     // Try to load the first request from the folder
-    if (this._state.folderPath) {
-      const collections = listCollections(this._state.folderPath);
+    if (this._state.fs) {
+      const collections = await this._state.fs.listCollections();
       if (collections.length > 0) {
         const first = collections[0];
         if (first.requests.length > 0) {
-          const req = readRequest(
-            this._state.folderPath,
-            first.requests[0].id
-          );
+          const req = await this._state.fs.readRequest(first.requests[0].id);
           if (req) {
             this._state.currentRequest = req;
             return this._state.currentRequest;
@@ -290,10 +347,10 @@ export class WebviewManager {
   }
 
   async refreshCollections(): Promise<void> {
-    if (!this._state.folderPath) return;
+    if (!this._state.fs) return;
 
     try {
-      const collections = listCollections(this._state.folderPath);
+      const collections = await this._state.fs.listCollections();
       this._state.collections = collections;
       this.updateContent();
     } catch (error) {
@@ -334,6 +391,10 @@ export class WebviewManager {
 
       case "history":
         this.postMessage({ type: "history", history: action.history });
+        break;
+
+      case "env-files":
+        this.postMessage({ type: "env-files", files: action.files });
         break;
 
       default:
@@ -397,6 +458,8 @@ export class WebviewManager {
       '.empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #888; font-size: 14px; }',
       '.loading { color: #0e639c; font-style: italic; }',
       '.error-msg { color: #f44747; padding: 8px; background: rgba(244, 71, 71, 0.1); border-radius: 3px; margin-bottom: 8px; }',
+      '.delete-btn { background: #c72e2e; color: #fff; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }',
+      '.delete-btn:hover { background: #e04040; }',
       '</style>',
       '</head>',
       '<body>',
@@ -409,6 +472,7 @@ export class WebviewManager {
       '<div class="toolbar">',
       '<button id="send-btn" disabled>Send</button>',
       '<button id="new-btn">New Request</button>',
+      '<button id="delete-btn" class="delete-btn" style="display:none;">Delete</button>',
       '<select id="env-select" class="env-select" style="display:none;"><option value="">No Env</option></select>',
       '</div>',
       '<div class="editor" id="editor"></div>',
@@ -419,6 +483,7 @@ export class WebviewManager {
       'const vscode = acquireVsCodeApi();',
       'const sendBtn = document.getElementById("send-btn");',
       'const newBtn = document.getElementById("new-btn");',
+      'const deleteBtn = document.getElementById("delete-btn");',
       'const envSelect = document.getElementById("env-select");',
       '',
       '// Send button handler',
@@ -431,6 +496,13 @@ export class WebviewManager {
       '// New request button handler',
       'newBtn?.addEventListener("click", () => {',
       '  vscode.postMessage({ type: "new-request" });',
+      "});",
+      '',
+      '// Delete request button handler',
+      'deleteBtn?.addEventListener("click", () => {',
+      '  if (confirm("Delete this request?")) {',
+      '    vscode.postMessage({ type: "delete-request" });',
+      "  }",
       "});",
       '',
       '// Environment selector handler',
@@ -491,9 +563,11 @@ export class WebviewManager {
       "  if (!request) {",
       "    editor.innerHTML = '<div class=\"empty\">Open a folder to get started</div>';",
       "    sendBtn.disabled = true;",
+      "    deleteBtn.style.display = 'none';",
       "    return;",
       "  }",
       "  sendBtn.disabled = false;",
+      "  deleteBtn.style.display = 'inline-block';",
       "  var methodOptions = ['GET','POST','PUT','PATCH','DELETE'].map(function(m) {",
       "    return '<option value=\"' + m + '\"' + (m === request.method ? ' selected' : '') + '>' + m + '</option>';",
       "  }).join('');",

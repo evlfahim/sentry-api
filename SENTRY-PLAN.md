@@ -38,7 +38,7 @@ Core logic resides in `packages/core` as a pure TypeScript library; the VS Code 
 - [x] 8. Polish Tauri UI with dark/light mode, error handling, and loading states; run integration tests on the desktop app.
 - [x] 9. Create VS Code extension manifest and stub in `packages/vscode`; verify extension activation and command registration.
 - [x] 10. Implement webview bridge in VS Code plugin to communicate with core library; test command execution via webview.
-- [ ] 11. Integrate VS Code file system APIs with core library; enable opening folders and saving requests directly from the plugin.
+- [x] 11. Integrate VS Code file system APIs with core library; enable opening folders and saving requests directly from the plugin.
 - [ ] 12. Add history and diff features to the VS Code webview; test replay and diff rendering within the editor context.
 - [ ] 13. Validate VS Code plugin functionality across different workspaces; ensure no conflicts with existing extensions.
 - [ ] 14. Write comprehensive README with setup instructions, usage examples, and guide for converting the core to a plugin.
