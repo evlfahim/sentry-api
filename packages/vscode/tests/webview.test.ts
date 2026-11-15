@@ -101,7 +101,7 @@ function createMockRequest(overrides: Partial<RequestFile> = {}): RequestFile {
 
 describe("handleWebviewMessage", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   describe("folder-selected", () => {
@@ -795,9 +795,11 @@ describe("handleWebviewMessage", () => {
         currentRequest: createMockRequest({ id: "req-1" }),
       });
 
-      let callCount = 0;
-      const responses: Response[] = [
-        {
+      // Manually add history entries to verify the structure
+      const entry1 = {
+        id: "h1",
+        request: { method: "GET", url: "https://api.example.com/data" },
+        response: {
           status: 200,
           statusText: "OK",
           headers: {},
@@ -805,7 +807,12 @@ describe("handleWebviewMessage", () => {
           duration: 30,
           request: { method: "GET", url: "https://api.example.com/data" },
         },
-        {
+        timestamp: new Date().toISOString(),
+      };
+      const entry2 = {
+        id: "h2",
+        request: { method: "GET", url: "https://api.example.com/data" },
+        response: {
           status: 200,
           statusText: "OK",
           headers: {},
@@ -813,20 +820,18 @@ describe("handleWebviewMessage", () => {
           duration: 25,
           request: { method: "GET", url: "https://api.example.com/data" },
         },
-      ];
+        timestamp: new Date().toISOString(),
+      };
+      state.historyStore.entries.push(entry1, entry2);
 
-      const coreModule = await import("@sentry-api/core");
-      vi.spyOn(coreModule, "sendRequest").mockImplementation(async () => {
-        const resp = responses[callCount++];
-        return resp;
-      });
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
 
-      await handleWebviewMessage({ type: "send-request" }, state);
-      await handleWebviewMessage({ type: "send-request" }, state);
-
-      expect(state.historyStore.entries).toHaveLength(2);
-      expect(state.historyStore.entries[0].response.data).toEqual({ page: 1 });
-      expect(state.historyStore.entries[1].response.data).toEqual({ page: 2 });
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("history");
+      expect(actions[0].history).toHaveLength(2);
+      expect(actions[0].history[0].response.data).toEqual({ page: 1 });
+      expect(actions[0].history[1].response.data).toEqual({ page: 2 });
     });
 
     it("history count is accessible via state", async () => {
@@ -1089,6 +1094,459 @@ describe("handleWebviewMessage", () => {
       expect(consoleSpy).toHaveBeenCalledWith("Unknown message type:", "unknown-type");
       expect(actions).toHaveLength(0);
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe("history panel integration", () => {
+    it("view-history action triggers history panel", async () => {
+      const state = createMockState();
+
+      const message: WebviewMessage = { type: "view-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("view-history");
+    });
+
+    it("history panel receives full history on get-history", async () => {
+      const state = createMockState();
+      state.historyStore.entries.push(
+        {
+          id: "h1",
+          request: { method: "GET", url: "https://api.example.com/users" },
+          response: {
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            data: { users: [{ id: 1, name: "Alice" }] },
+            duration: 45,
+            request: { method: "GET", url: "https://api.example.com/users" },
+          },
+          timestamp: new Date().toISOString(),
+        },
+        {
+          id: "h2",
+          request: { method: "POST", url: "https://api.example.com/users" },
+          response: {
+            status: 201,
+            statusText: "Created",
+            headers: {},
+            data: { id: 2, name: "Bob" },
+            duration: 120,
+            request: { method: "POST", url: "https://api.example.com/users" },
+          },
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("history");
+      expect(actions[0].history).toHaveLength(2);
+      expect(actions[0].history[0].request.method).toBe("GET");
+      expect(actions[0].history[1].request.method).toBe("POST");
+    });
+
+    it("history panel shows empty state when no entries", async () => {
+      const state = createMockState();
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("history");
+      expect(actions[0].history).toHaveLength(0);
+    });
+
+    it("history entries include full request data for replay", async () => {
+      const state = createMockState();
+      state.historyStore.entries.push(
+        {
+          id: "h1",
+          request: {
+            method: "POST",
+            url: "https://api.example.com/users",
+            headers: { "Content-Type": "application/json" },
+            body: { name: "Test User", email: "test@example.com" },
+          },
+          response: {
+            status: 201,
+            statusText: "Created",
+            headers: {},
+            data: { id: 10, name: "Test User", email: "test@example.com" },
+            duration: 55,
+            request: {
+              method: "POST",
+              url: "https://api.example.com/users",
+            },
+          },
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      const entry = actions[0].history[0];
+      expect(entry.request.method).toBe("POST");
+      expect(entry.request.url).toBe("https://api.example.com/users");
+      expect(entry.request.headers).toEqual({ "Content-Type": "application/json" });
+      expect(entry.request.body).toEqual({ name: "Test User", email: "test@example.com" });
+      expect(entry.response.status).toBe(201);
+      expect(entry.timestamp).toBeDefined();
+    });
+
+    it("history entries include query parameters", async () => {
+      const state = createMockState();
+      state.historyStore.entries.push(
+        {
+          id: "h1",
+          request: {
+            method: "GET",
+            url: "https://api.example.com/search",
+            query: { q: "test", page: "1", limit: "10" },
+          },
+          response: {
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            data: { results: [], total: 0 },
+            duration: 30,
+            request: {
+              method: "GET",
+              url: "https://api.example.com/search",
+            },
+          },
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].history[0].request.query).toEqual({
+        q: "test",
+        page: "1",
+        limit: "10",
+      });
+    });
+
+    it("history entries include response metadata", async () => {
+      const state = createMockState();
+      state.historyStore.entries.push(
+        {
+          id: "h1",
+          request: { method: "GET", url: "https://api.example.com/status" },
+          response: {
+            status: 200,
+            statusText: "OK",
+            headers: {
+              "content-type": "application/json",
+              "x-rate-limit-remaining": "99",
+              "x-request-id": "abc123",
+            },
+            data: { message: "success" },
+            duration: 42,
+            request: { method: "GET", url: "https://api.example.com/status" },
+          },
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      const entry = actions[0].history[0];
+      expect(entry.response.headers).toEqual({
+        "content-type": "application/json",
+        "x-rate-limit-remaining": "99",
+        "x-request-id": "abc123",
+      });
+      expect(entry.response.duration).toBe(42);
+    });
+  });
+
+  describe("diff panel integration", () => {
+    it("diff-with-history action includes current response", async () => {
+      const mockResponse: Response = {
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        data: { name: "Alice", email: "alice@example.com", role: "admin" },
+        duration: 35,
+        request: { method: "GET", url: "https://api.example.com/users/1" },
+      };
+      const state = createMockState({
+        response: mockResponse,
+      });
+
+      const message: WebviewMessage = { type: "diff-with-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("diff-with-history");
+      expect(actions[0].response).toBeDefined();
+      expect(actions[0].response.status).toBe(200);
+      expect(actions[0].response.data).toEqual({
+        name: "Alice",
+        email: "alice@example.com",
+        role: "admin",
+      });
+    });
+
+    it("diff-with-history action includes error response", async () => {
+      const errorResponse: ErrorResponse = {
+        error: "Not Found",
+        request: { method: "GET", url: "https://api.example.com/missing" },
+      };
+      const state = createMockState({
+        response: errorResponse,
+      });
+
+      const message: WebviewMessage = { type: "diff-with-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("diff-with-history");
+      expect(actions[0].response).toEqual(errorResponse);
+    });
+
+    it("diff-with-history action works with no response set", async () => {
+      const state = createMockState({
+        response: undefined,
+      });
+
+      const message: WebviewMessage = { type: "diff-with-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("diff-with-history");
+      expect(actions[0].response).toBeUndefined();
+    });
+
+    it("diff-with-history preserves response headers", async () => {
+      const mockResponse: Response = {
+        status: 200,
+        statusText: "OK",
+        headers: {
+          "content-type": "application/json",
+          "x-rate-limit-remaining": "99",
+          "x-request-id": "abc123",
+        },
+        data: { message: "success" },
+        duration: 42,
+        request: { method: "GET", url: "https://api.example.com/status" },
+      };
+      const state = createMockState({
+        response: mockResponse,
+      });
+
+      const message: WebviewMessage = { type: "diff-with-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions[0].response.headers).toEqual({
+        "content-type": "application/json",
+        "x-rate-limit-remaining": "99",
+        "x-request-id": "abc123",
+      });
+      expect(actions[0].response.duration).toBe(42);
+    });
+
+    it("diff-with-history works with nested response data", async () => {
+      const mockResponse: Response = {
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        data: {
+          meta: { total: 100, page: 1, perPage: 10 },
+          data: [
+            { id: 1, attributes: { name: "Item 1", price: 9.99 } },
+            { id: 2, attributes: { name: "Item 2", price: 19.99 } },
+          ],
+          links: { self: "/api/items?page=1", next: "/api/items?page=2" },
+        },
+        duration: 67,
+        request: { method: "GET", url: "https://api.example.com/items" },
+      };
+      const state = createMockState({
+        response: mockResponse,
+      });
+
+      const message: WebviewMessage = { type: "diff-with-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions[0].response.data).toEqual({
+        meta: { total: 100, page: 1, perPage: 10 },
+        data: [
+          { id: 1, attributes: { name: "Item 1", price: 9.99 } },
+          { id: 2, attributes: { name: "Item 2", price: 19.99 } },
+        ],
+        links: { self: "/api/items?page=1", next: "/api/items?page=2" },
+      });
+    });
+
+    it("diff-with-history action is created even with empty response data", async () => {
+      const mockResponse: Response = {
+        status: 204,
+        statusText: "No Content",
+        headers: {},
+        data: null,
+        duration: 15,
+        request: { method: "DELETE", url: "https://api.example.com/users/5" },
+      };
+      const state = createMockState({
+        response: mockResponse,
+      });
+
+      const message: WebviewMessage = { type: "diff-with-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0].type).toBe("diff-with-history");
+      expect(actions[0].response.status).toBe(204);
+      expect(actions[0].response.data).toBeNull();
+    });
+
+    it("diff-with-history action includes response with users array", async () => {
+      const mockResponse: Response = {
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        data: { users: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }] },
+        duration: 55,
+        request: { method: "GET", url: "https://api.example.com/users" },
+      };
+      const state = createMockState({
+        response: mockResponse,
+      });
+
+      const message: WebviewMessage = { type: "diff-with-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions).toHaveLength(1);
+      const diffAction = actions[0];
+      expect(diffAction.type).toBe("diff-with-history");
+      expect(diffAction.response).toBeDefined();
+      expect(diffAction.response.status).toBe(200);
+      expect(diffAction.response.data).toEqual({
+        users: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }],
+      });
+    });
+  });
+
+  describe("replay from history", () => {
+    it("history entries can be retrieved for replay", async () => {
+      const state = createMockState();
+      state.historyStore.entries.push(
+        {
+          id: "h1",
+          request: {
+            method: "POST",
+            url: "https://api.example.com/users",
+            headers: { "Content-Type": "application/json" },
+            body: { name: "Test User" },
+          },
+          response: {
+            status: 201,
+            statusText: "Created",
+            headers: {},
+            data: { id: 10 },
+            duration: 55,
+            request: {
+              method: "POST",
+              url: "https://api.example.com/users",
+            },
+          },
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions[0].history[0].request.method).toBe("POST");
+      expect(actions[0].history[0].request.url).toBe("https://api.example.com/users");
+      expect(actions[0].history[0].request.body).toEqual({ name: "Test User" });
+    });
+
+    it("history entries preserve original request headers", async () => {
+      const state = createMockState();
+      state.historyStore.entries.push(
+        {
+          id: "h1",
+          request: {
+            method: "PUT",
+            url: "https://api.example.com/users/1",
+            headers: {
+              "Authorization": "Bearer token123",
+              "Content-Type": "application/json",
+              "X-Custom-Header": "custom-value",
+            },
+            body: { name: "Updated Name" },
+          },
+          response: {
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            data: { id: 1, name: "Updated Name" },
+            duration: 40,
+            request: {
+              method: "PUT",
+              url: "https://api.example.com/users/1",
+            },
+          },
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions[0].history[0].request.headers).toEqual({
+        "Authorization": "Bearer token123",
+        "Content-Type": "application/json",
+        "X-Custom-Header": "custom-value",
+      });
+    });
+
+    it("history entries preserve query parameters", async () => {
+      const state = createMockState();
+      state.historyStore.entries.push(
+        {
+          id: "h1",
+          request: {
+            method: "GET",
+            url: "https://api.example.com/search",
+            query: { q: "test", page: "1", limit: "10" },
+          },
+          response: {
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            data: { results: [], total: 0 },
+            duration: 30,
+            request: {
+              method: "GET",
+              url: "https://api.example.com/search",
+            },
+          },
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      const message: WebviewMessage = { type: "get-history" };
+      const actions = await handleWebviewMessage(message, state);
+
+      expect(actions[0].history[0].request.query).toEqual({
+        q: "test",
+        page: "1",
+        limit: "10",
+      });
     });
   });
 });

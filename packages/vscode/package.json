@@ -69,7 +69,8 @@
     "build": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "npm run compile",
-    "lint": "echo 'No lint configured yet'"
+    "lint": "echo 'No lint configured yet'",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^20.11.19",
