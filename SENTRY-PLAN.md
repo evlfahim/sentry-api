@@ -31,7 +31,7 @@ Core logic resides in `packages/core` as a pure TypeScript library; the VS Code 
 - [x] 1. Initialize monorepo with `packages/core`, `packages/app`, and `packages/vscode`; configure Vitest and verify core test suite runs.
 - [x] 2. Implement HTTP client, environment parser, and request builder in core; write unit tests for URL interpolation and header handling.
 - [x] 3. Add file system operations to core for reading/writing collections and one-file-per-request structure; test persistence and migration.
-- [ ] 4. Implement history management and response diffing logic in core; write tests for JSON diff algorithms and history replay.
+- [x] 4. Implement history management and response diffing logic in core; write tests for JSON diff algorithms and history replay.
 - [ ] 5. Scaffold Tauri desktop app with sidebar, request editor, and response viewer; verify `cargo tauri dev` launches the UI.
 - [ ] 6. Connect Tauri UI to core library; implement request sending, response display, and history population.
 - [ ] 7. Add response diff view, cURL export, and environment switcher to the Tauri app; test file watching for external changes.
