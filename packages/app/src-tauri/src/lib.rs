@@ -9,10 +9,13 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tauri::Emitter;
 use tauri::Manager;
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
@@ -243,6 +246,75 @@ fn sorted_entries(folder: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(entries)
 }
 
+/// Lists `.env` files in a folder (non-recursive).
+#[tauri::command]
+fn list_env_files(base_path: String) -> Result<Vec<Value>, String> {
+    let base = Path::new(&base_path);
+    if !base.is_dir() {
+        return Err(format!("Not a folder: {}", base.display()));
+    }
+    let mut env_files = Vec::new();
+    for entry in sorted_entries(base)? {
+        if entry.is_file() {
+            let name = entry.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            if name.starts_with('.') && name.ends_with(".env") {
+                env_files.push(Value::String(name));
+            }
+        }
+    }
+    Ok(env_files)
+}
+
+/// Reads the content of a `.env` file.
+#[tauri::command]
+fn read_env_file(base_path: String, filename: String) -> Result<String, String> {
+    let path = Path::new(&base_path).join(&filename);
+    fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Watches a folder for changes and emits `collection-changed` events.
+#[tauri::command]
+fn watch_collections(
+    app: tauri::AppHandle,
+    base_path: String,
+) -> Result<(), String> {
+    let (tx, rx) = mpsc::channel();
+    // Clone tx so we can forget it to keep the channel alive.
+    let tx_clone = tx.clone();
+    let mut watcher: RecommendedWatcher = Watcher::new(tx, notify::Config::default())
+        .map_err(|e| format!("Failed to create watcher: {e}"))?;
+
+    watcher
+        .watch(Path::new(&base_path), RecursiveMode::Recursive)
+        .map_err(|e| format!("Failed to watch {}: {e}", base_path))?;
+
+    // Spawn a background thread to forward events to the Tauri app.
+    std::thread::spawn(move || {
+        for event in rx {
+            match event {
+                Ok(Event { kind, paths, .. }) => {
+                    let kind_str = format!("{:?}", kind);
+                    let path_strs: Vec<String> = paths
+                        .iter()
+                        .filter(|p| p.extension().map_or(false, |ext| ext == "json"))
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .collect();
+                    if !path_strs.is_empty() {
+                        let _ = app.emit("collection-changed", (kind_str, path_strs));
+                    }
+                }
+                Err(e) => {
+                    let _ = app.emit("collection-changed", (format!("error: {e}"), Vec::<String>::new()));
+                }
+            }
+        }
+    });
+
+    // Forget the clone to keep the channel alive for the lifetime of the app.
+    std::mem::forget(tx_clone);
+    Ok(())
+}
+
 fn history_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     Ok(dir.join(HISTORY_FILE))
@@ -269,6 +341,47 @@ fn save_history(app: tauri::AppHandle, contents: String) -> Result<(), String> {
     fs::write(&path, contents).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// Exports a request as a cURL command string.
+#[tauri::command]
+fn export_curl(
+    method: String,
+    url: String,
+    headers: Option<HashMap<String, String>>,
+    query: Option<HashMap<String, String>>,
+    body: Option<Value>,
+) -> Result<String, String> {
+    let mut curl = format!("curl -X {}", method);
+
+    if let Some(ref h) = headers {
+        for (key, value) in h {
+            curl.push_str(&format!(" -H \"{}: {}\"", key, value));
+        }
+    }
+
+    if let Some(ref q) = query {
+        let mut params = Vec::new();
+        for (key, value) in q {
+            params.push(format!("{}={}", key, value));
+        }
+        let separator = if url.contains('?') { "&" } else { "?" };
+        curl.push_str(&format!(" \"{}{}{}\"", url, separator, params.join("&")));
+    } else {
+        curl.push_str(&format!(" \"{}\"", url));
+    }
+
+    if let Some(ref b) = body {
+        if ["POST", "PUT", "PATCH"].contains(&method.to_uppercase().as_str()) {
+            let body_str = match b {
+                Value::String(s) => s.clone(),
+                _ => serde_json::to_string(b).unwrap_or_default(),
+            };
+            curl.push_str(&format!(" -d '{}'", body_str));
+        }
+    }
+
+    Ok(curl)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -277,7 +390,11 @@ pub fn run() {
             send_http_request,
             list_collections,
             load_history,
-            save_history
+            save_history,
+            list_env_files,
+            read_env_file,
+            watch_collections,
+            export_curl,
         ])
         .run(tauri::generate_context!())
         .expect("error while running sentry-api");
@@ -342,5 +459,79 @@ mod tests {
     fn missing_folder_is_an_error() {
         let base = temp_dir("missing").join("does-not-exist");
         assert!(read_collections(&base).is_err());
+    }
+
+    #[test]
+    fn export_curl_basic_get() {
+        let result = export_curl(
+            "GET".to_string(),
+            "https://api.example.com/users".to_string(),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(result, r#"curl -X GET "https://api.example.com/users""#);
+    }
+
+    #[test]
+    fn export_curl_post_with_body() {
+        let body = serde_json::json!({"name": "John", "email": "john@example.com"});
+        let result = export_curl(
+            "POST".to_string(),
+            "https://api.example.com/users".to_string(),
+            Some(HashMap::from([("Content-Type".to_string(), "application/json".to_string())])),
+            None,
+            Some(body),
+        )
+        .unwrap();
+        assert!(result.contains("curl -X POST"));
+        assert!(result.contains("Content-Type: application/json"));
+        // serde_json serializes without spaces after colons
+        assert!(result.contains("\"name\":\"John\"") || result.contains("\"name\": \"John\""));
+    }
+
+    #[test]
+    fn export_curl_with_query_params() {
+        let query = HashMap::from([("q".to_string(), "test".to_string()), ("page".to_string(), "1".to_string())]);
+        let result = export_curl(
+            "GET".to_string(),
+            "https://api.example.com/search".to_string(),
+            None,
+            Some(query),
+            None,
+        )
+        .unwrap();
+        assert!(result.contains("q=test"));
+        assert!(result.contains("page=1"));
+    }
+
+    #[test]
+    fn list_env_files_finds_dot_env_files() {
+        let base = temp_dir("envfiles");
+        fs::write(base.join(".env"), "KEY=value\n").unwrap();
+        fs::write(base.join("README.md"), "# Readme").unwrap();
+        fs::write(base.join("data.json"), "{}").unwrap();
+
+        let result = list_env_files(base.to_string_lossy().to_string()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result.iter().any(|f| f.as_str().unwrap() == ".env"));
+    }
+
+    #[test]
+    fn read_env_file_returns_content() {
+        let base = temp_dir("readenv");
+        let content = "API_KEY=abc123\nBASE_URL=https://api.example.com\n";
+        fs::write(base.join(".env"), content).unwrap();
+
+        let result = read_env_file(base.to_string_lossy().to_string(), ".env".to_string()).unwrap();
+        assert_eq!(result, content);
+    }
+
+    #[test]
+    fn read_env_file_missing_returns_error() {
+        let base = temp_dir("readenv_missing");
+        let result = read_env_file(base.to_string_lossy().to_string(), ".env".to_string());
+        assert!(result.is_err());
     }
 }

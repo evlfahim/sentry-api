@@ -34,7 +34,7 @@ Core logic resides in `packages/core` as a pure TypeScript library; the VS Code 
 - [x] 4. Implement history management and response diffing logic in core; write tests for JSON diff algorithms and history replay.
 - [x] 5. Scaffold Tauri desktop app with sidebar, request editor, and response viewer; verify `cargo tauri dev` launches the UI.
 - [x] 6. Connect Tauri UI to core library; implement request sending, response display, and history population.
-- [ ] 7. Add response diff view, cURL export, and environment switcher to the Tauri app; test file watching for external changes.
+- [x] 7. Add response diff view, cURL export, and environment switcher to the Tauri app; test file watching for external changes.
 - [ ] 8. Polish Tauri UI with dark/light mode, error handling, and loading states; run integration tests on the desktop app.
 - [ ] 9. Create VS Code extension manifest and stub in `packages/vscode`; verify extension activation and command registration.
 - [ ] 10. Implement webview bridge in VS Code plugin to communicate with core library; test command execution via webview.

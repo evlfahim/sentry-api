@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
+import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
 import type { HistoryEntry, RequestFile, RequestOptions, Response } from "@sentry-api/core/browser";
 import {
   addToHistory,
@@ -19,6 +20,7 @@ import {
   saveHistory,
   sendHttpRequest,
   type LoadedCollection,
+  watchCollections,
 } from "./lib/api";
 
 function toRequestOptions(request: RequestFile): RequestOptions {
@@ -40,13 +42,21 @@ export default function App() {
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [editorRequest, setEditorRequest] = useState<RequestOptions | undefined>(undefined);
   const [response, setResponse] = useState<Response | null>(null);
+  const [previousResponse, setPreviousResponse] = useState<Response | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Environment state
+  const [activeEnv, setActiveEnv] = useState<string | null>(null);
+  const [envValues, setEnvValues] = useState<Record<string, string>>({});
+
   // The core history store is mutated in place; `history` mirrors its entries for rendering.
   const historyStoreRef = useRef(createHistoryStore());
+
+  // File watching cleanup
+  const watchCleanupRef = useRef<(() => void) | null>(null);
 
   const persistHistory = useCallback(() => {
     saveHistory(historyStoreRef.current).catch((err) => {
@@ -86,6 +96,21 @@ export default function App() {
       setSelectedCollectionId(loaded.length === 1 ? loaded[0].id : null);
       setSelectedRequestId(null);
       setNotice(loaded.length === 0 ? "No collections found in this folder." : null);
+
+      // Start watching for external file changes
+      if (watchCleanupRef.current) {
+        watchCleanupRef.current();
+      }
+      watchCleanupRef.current = watchCollections(folderPath, (kind, changedPaths) => {
+        setNotice(`File changed: ${changedPaths.join(", ")} (${kind})`);
+        // Reload collections to pick up changes
+        loadCollections(folderPath)
+          .then((updated) => {
+            setCollections(updated);
+            setNotice(null);
+          })
+          .catch(() => {});
+      });
     } catch (err) {
       setNotice(`Could not open folder: ${errorMessage(err)}`);
     }
@@ -117,6 +142,8 @@ export default function App() {
           setError(result.error);
           return;
         }
+        // Store previous response for diffing
+        setPreviousResponse(response);
         setResponse(result);
         const entry = addToHistory(historyStoreRef.current, request, result);
         setHistory([...historyStoreRef.current.entries]);
@@ -128,7 +155,7 @@ export default function App() {
         setLoading(false);
       }
     },
-    [persistHistory]
+    [persistHistory, response]
   );
 
   /** Select a request from a collection and load it into the editor. */
@@ -142,6 +169,7 @@ export default function App() {
       setSelectedHistoryId(null);
       setEditorRequest(toRequestOptions(request));
       setResponse(null);
+      setPreviousResponse(null);
       setError(null);
     },
     [collections]
@@ -157,6 +185,7 @@ export default function App() {
     setSelectedRequestId(null);
     setEditorRequest(request);
     setResponse(entry.response);
+    setPreviousResponse(null);
     setError(null);
   }, []);
 
@@ -167,6 +196,20 @@ export default function App() {
     persistHistory();
   }, [persistHistory]);
 
+  const handleEnvSelect = useCallback((name: string, values: Record<string, string>) => {
+    setActiveEnv(name || null);
+    setEnvValues(values);
+  }, []);
+
+  // Cleanup file watcher on unmount
+  useEffect(() => {
+    return () => {
+      if (watchCleanupRef.current) {
+        watchCleanupRef.current();
+      }
+    };
+  }, []);
+
   return (
     <div className={darkMode ? "dark" : ""}>
       <div className="h-screen w-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -176,12 +219,20 @@ export default function App() {
             <span className="font-bold text-sm text-indigo-600 dark:text-indigo-400">Sentry API</span>
             <span className="text-xs text-gray-400">v0.1.0</span>
           </div>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-          >
-            {darkMode ? "☀️ Light" : "🌙 Dark"}
-          </button>
+          <div className="flex items-center gap-3">
+            <EnvironmentSwitcher
+              basePath={basePath}
+              activeEnv={activeEnv}
+              envValues={envValues}
+              onEnvSelect={handleEnvSelect}
+            />
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+            >
+              {darkMode ? "☀️ Light" : "🌙 Dark"}
+            </button>
+          </div>
         </header>
 
         {/* Main layout */}
@@ -209,6 +260,7 @@ export default function App() {
             response={response}
             loading={loading}
             error={error}
+            previousResponse={previousResponse}
           />
         </div>
 

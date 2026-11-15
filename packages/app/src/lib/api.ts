@@ -106,4 +106,46 @@ export async function saveHistory(store: HistoryStore): Promise<void> {
   await invoke("save_history", { contents: serializeHistory(store) });
 }
 
+/** Lists `.env` files in a folder (non-recursive). */
+export async function listEnvFiles(basePath: string): Promise<string[]> {
+  return invoke<string[]>("list_env_files", { basePath });
+}
+
+/** Reads the content of a `.env` file. */
+export async function readEnvFile(
+  basePath: string,
+  filename: string
+): Promise<string> {
+  return invoke<string>("read_env_file", { basePath, filename });
+}
+
+/** Starts watching a folder for file changes. Emits `collection-changed` events. */
+export function watchCollections(
+  basePath: string,
+  onEvent: (kind: string, changedPaths: string[]) => void
+): () => void {
+  const handler = (e: Event) => {
+    const customEvent = e as CustomEvent<[string, string[]]>;
+    onEvent(customEvent.detail[0], customEvent.detail[1]);
+  };
+  window.addEventListener("collection-changed", handler as EventListener);
+  invoke("watch_collections", { basePath }).catch(() => {
+    // Watcher may fail if the folder doesn't exist yet; that's fine.
+  });
+  return () => {
+    window.removeEventListener("collection-changed", handler as EventListener);
+  };
+}
+
+/** Exports a request as a cURL command string. */
+export async function exportCurl(options: RequestOptions): Promise<string> {
+  return invoke<string>("export_curl", {
+    method: options.method,
+    url: options.url,
+    headers: options.headers,
+    query: options.query,
+    body: options.body,
+  });
+}
+
 export { errorMessage };

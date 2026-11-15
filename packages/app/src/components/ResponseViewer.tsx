@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { diff, type DiffResult } from "@sentry-api/core/browser";
 
-const TABS = ["Body", "Headers", "Preview"] as const;
+const TABS = ["Body", "Headers", "Diff", "Preview"] as const;
 type Tab = (typeof TABS)[number];
 
 interface ResponseViewerProps {
@@ -13,14 +14,29 @@ interface ResponseViewerProps {
   } | null;
   loading: boolean;
   error: string | null;
+  /** Previous response to compare against (for diff view). */
+  previousResponse: {
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    data: unknown;
+    duration: number;
+  } | null;
 }
 
 export default function ResponseViewer({
   response,
   loading,
   error,
+  previousResponse,
 }: ResponseViewerProps) {
   const [activeTab, setActiveTab] = useState<Tab>("Body");
+
+  // Compute diff between previous and current response
+  const diffResults: DiffResult[] =
+    response && previousResponse
+      ? diff(previousResponse.data, response.data)
+      : [];
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
@@ -49,6 +65,11 @@ export default function ResponseViewer({
               <span className="text-xs text-gray-400">
                 {response.duration}ms
               </span>
+              {previousResponse && (
+                <span className="text-xs text-indigo-500 dark:text-indigo-400">
+                  {diffResults.length} change{diffResults.length !== 1 ? "s" : ""}
+                </span>
+              )}
             </>
           )}
         </div>
@@ -91,6 +112,11 @@ export default function ResponseViewer({
                   }`}
                 >
                   {tab}
+                  {tab === "Diff" && diffResults.length > 0 && (
+                    <span className="ml-1 px-1 py-0.5 text-[10px] bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full">
+                      {diffResults.length}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -114,6 +140,61 @@ export default function ResponseViewer({
                   ))}
                 </tbody>
               </table>
+            )}
+
+            {activeTab === "Diff" && (
+              <div>
+                {diffResults.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-2xl mb-2">✓</div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No differences from previous response
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {diffResults.map((d, i) => (
+                      <div
+                        key={i}
+                        className={`p-3 rounded-lg border text-xs font-mono ${
+                          d.type === "changed"
+                            ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+                            : d.type === "added"
+                            ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                            : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className={`font-bold ${
+                              d.type === "changed"
+                                ? "text-yellow-600 dark:text-yellow-400"
+                                : d.type === "added"
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-red-600 dark:text-red-400"
+                            }`}
+                          >
+                            {d.type === "changed" ? "~" : d.type === "added" ? "+" : "-"}
+                          </span>
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">
+                            {d.path || "(root)"}
+                          </span>
+                        </div>
+                        {d.old !== undefined && (
+                          <div className="ml-4 text-red-600 dark:text-red-400">
+                            - {JSON.stringify(d.old)}
+                          </div>
+                        )}
+                        {d.new !== undefined && (
+                          <div className="ml-4 text-green-600 dark:text-green-400">
+                            + {JSON.stringify(d.new)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {activeTab === "Preview" && (

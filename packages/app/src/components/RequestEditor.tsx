@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { HttpMethod, RequestOptions } from "@sentry-api/core/browser";
+import { exportCurl } from "../lib/api";
 
 interface RequestEditorProps {
   /** Request to load into the editor (from a collection or a history replay). */
@@ -24,6 +25,8 @@ export default function RequestEditor({
   const [body, setBody] = useState<string>("");
   const [bodyType, setBodyType] = useState<"json" | "raw" | "form">("json");
   const [activeTab, setActiveTab] = useState<Tab>("Headers");
+  const [curlExport, setCurlExport] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Load selected request into editor
   useEffect(() => {
@@ -58,6 +61,8 @@ export default function RequestEditor({
       setQueryParams("");
       setBody("");
     }
+    setCurlExport(null);
+    setCopied(false);
   }, [selectedRequest]);
 
   const handleSend = async () => {
@@ -107,6 +112,70 @@ export default function RequestEditor({
     });
   };
 
+  const handleExportCurl = async () => {
+    // Parse headers
+    const headersMap: Record<string, string> = {};
+    if (headers.trim()) {
+      for (const line of headers.trim().split("\n")) {
+        const idx = line.indexOf(":");
+        if (idx > 0) {
+          headersMap[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+        }
+      }
+    }
+
+    // Parse query params
+    const queryMap: Record<string, string> = {};
+    if (queryParams.trim()) {
+      for (const line of queryParams.trim().split("\n")) {
+        const idx = line.indexOf("=");
+        if (idx > 0) {
+          queryMap[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+        }
+      }
+    }
+
+    // Parse body
+    let bodyValue: unknown = undefined;
+    if (body.trim()) {
+      if (bodyType === "json") {
+        try {
+          bodyValue = JSON.parse(body);
+        } catch {
+          bodyValue = body;
+        }
+      } else {
+        bodyValue = body;
+      }
+    }
+
+    try {
+      const curl = await exportCurl({
+        method,
+        url: url.trim(),
+        headers: Object.keys(headersMap).length > 0 ? headersMap : undefined,
+        query: Object.keys(queryMap).length > 0 ? queryMap : undefined,
+        body: bodyValue,
+      });
+      setCurlExport(curl);
+      setCopied(false);
+    } catch {
+      setCurlExport("Failed to generate cURL command");
+    }
+  };
+
+  const handleCopyCurl = async () => {
+    if (curlExport) {
+      try {
+        await navigator.clipboard.writeText(curlExport);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Clipboard not available
+      }
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
       {/* URL bar */}
@@ -129,6 +198,14 @@ export default function RequestEditor({
           placeholder="Enter request URL..."
           className="flex-1 px-3 py-1.5 text-sm rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
         />
+        <button
+          onClick={handleExportCurl}
+          disabled={loading || !url}
+          className="px-3 py-1.5 text-xs font-semibold rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          title="Export as cURL"
+        >
+          📋 cURL
+        </button>
         <button
           onClick={handleSend}
           disabled={loading || !url}
@@ -245,6 +322,26 @@ export default function RequestEditor({
         </div>
         )}
       </div>
+
+      {/* cURL export panel */}
+      {curlExport && (
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="px-4 py-2 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              cURL Export
+            </span>
+            <button
+              onClick={handleCopyCurl}
+              className="text-xs px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition"
+            >
+              {copied ? "✓ Copied" : "Copy"}
+            </button>
+          </div>
+          <pre className="text-xs font-mono whitespace-pre-wrap break-all p-4 max-h-40 overflow-y-auto">
+            {curlExport}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
