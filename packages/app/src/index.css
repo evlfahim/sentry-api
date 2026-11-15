@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+html.dark body {
+  background-color: #0f172a;
+  color: #e5e7eb;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* JSON syntax highlighting */
+.json-key {
+  color: #d97706;
+}
+
+.json-string {
+  color: #059669;
+}
+
+.json-number {
+  color: #2563eb;
+}
+
+.json-boolean {
+  color: #7c3aed;
+}
+
+.json-null {
+  color: #6b7280;
+}
+
+html.dark .json-key {
+  color: #fbbf24;
+}
+
+html.dark .json-string {
+  color: #34d399;
+}
+
+html.dark .json-number {
+  color: #60a5fa;
+}
+
+html.dark .json-boolean {
+  color: #a78bfa;
+}
+
+html.dark .json-null {
+  color: #9ca3af;
+}

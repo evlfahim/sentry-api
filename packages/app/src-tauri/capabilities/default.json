@@ -1,0 +1,4 @@
+{
+  "windows": ["main"],
+  "permissions": ["core:default", "shell:allow-open"]
+}
