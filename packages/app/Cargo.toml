@@ -5,9 +5,14 @@ description = "A git-native API client"
 authors = ["you"]
 edition = "2021"
 
+[[bin]]
+name = "sentry-api"
+path = "src-tauri/src/main.rs"
+
 [lib]
 name = "sentry_api_lib"
-crate_type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
+path = "src-tauri/src/lib.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
