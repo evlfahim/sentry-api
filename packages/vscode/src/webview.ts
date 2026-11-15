@@ -13,7 +13,7 @@ import {
  * Provides the UI for browsing collections, editing requests, and viewing responses.
  */
 export class WebviewManager {
-  public readonly webview: vscode.Webview;
+  public readonly panel: vscode.WebviewPanel;
   private _folderPath: string | undefined;
   private _activeEnvFile: string | undefined;
   private _currentRequest: RequestFile | undefined;
@@ -21,7 +21,7 @@ export class WebviewManager {
   private _collections: Collection[] = [];
 
   constructor(private readonly context: vscode.ExtensionContext) {
-    this.webview = vscode.window.createWebviewPanel(
+    this.panel = vscode.window.createWebviewPanel(
       "sentryApi",
       "Sentry API",
       vscode.ViewColumn.Two,
@@ -31,7 +31,7 @@ export class WebviewManager {
       }
     );
 
-    this.webview.onDidReceiveMessage(
+    this.panel.webview.onDidReceiveMessage(
       async (message: any) => {
         await this.handleMessage(message);
       },
@@ -77,11 +77,14 @@ export class WebviewManager {
       if (collections.length > 0) {
         const first = collections[0];
         if (first.requests.length > 0) {
-          this._currentRequest = readRequest(
+          const req = readRequest(
             this._folderPath,
             first.requests[0].id
           );
-          return this._currentRequest;
+          if (req) {
+            this._currentRequest = req;
+            return this._currentRequest;
+          }
         }
       }
     }
@@ -128,7 +131,9 @@ export class WebviewManager {
             ...message.data,
             updated: new Date().toISOString(),
           };
-          updateRequest(this._folderPath, this._currentRequest);
+          if (this._currentRequest) {
+            updateRequest(this._folderPath, this._currentRequest);
+          }
           this.updateContent();
         }
         break;
@@ -161,9 +166,9 @@ export class WebviewManager {
   }
 
   private updateContent(): void {
-    if (!this.webview) return;
+    if (!this.panel) return;
 
-    const cspSource = this.webview.cspSource;
+    const cspSource = this.panel.webview.cspSource;
     const collectionsData = JSON.stringify(this._collections);
     const currentRequestData = this._currentRequest
       ? JSON.stringify(this._currentRequest)
@@ -310,6 +315,6 @@ export class WebviewManager {
       "</html>",
     ].join("\n");
 
-    this.webview.html = html;
+    this.panel.webview.html = html;
   }
 }

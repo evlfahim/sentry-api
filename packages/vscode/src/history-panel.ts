@@ -31,7 +31,7 @@ export class HistoryPanel {
       this.panel = undefined;
     });
 
-    this.panel.onDidReceiveMessage(
+    this.panel.webview.onDidReceiveMessage(
       async (message: any) => {
         if (message.type === "replay") {
           vscode.commands.executeCommand("sentry-api.sendRequest");
@@ -133,6 +133,6 @@ export class HistoryPanel {
       "</html>",
     ].join("\n");
 
-    this.panel.html = html;
+    this.panel.webview.html = html;
   }
 }

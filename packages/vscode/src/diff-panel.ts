@@ -102,6 +102,6 @@ export class DiffPanel {
       '</html>',
     ].join("\n");
 
-    this.panel.html = html;
+    this.panel.webview.html = html;
   }
 }

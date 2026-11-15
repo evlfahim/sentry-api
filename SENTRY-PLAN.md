@@ -36,7 +36,7 @@ Core logic resides in `packages/core` as a pure TypeScript library; the VS Code 
 - [x] 6. Connect Tauri UI to core library; implement request sending, response display, and history population.
 - [x] 7. Add response diff view, cURL export, and environment switcher to the Tauri app; test file watching for external changes.
 - [x] 8. Polish Tauri UI with dark/light mode, error handling, and loading states; run integration tests on the desktop app.
-- [ ] 9. Create VS Code extension manifest and stub in `packages/vscode`; verify extension activation and command registration.
+- [x] 9. Create VS Code extension manifest and stub in `packages/vscode`; verify extension activation and command registration.
 - [ ] 10. Implement webview bridge in VS Code plugin to communicate with core library; test command execution via webview.
 - [ ] 11. Integrate VS Code file system APIs with core library; enable opening folders and saving requests directly from the plugin.
 - [ ] 12. Add history and diff features to the VS Code webview; test replay and diff rendering within the editor context.
