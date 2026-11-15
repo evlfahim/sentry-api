@@ -53,6 +53,16 @@ export class DiffPanel {
     this.updateContent();
   }
 
+  /**
+   * Disposes the webview panel and cleans up resources.
+   */
+  dispose(): void {
+    if (this.panel) {
+      this.panel.dispose();
+      this.panel = undefined;
+    }
+  }
+
   private updateContent(): void {
     if (!this.panel) return;
 

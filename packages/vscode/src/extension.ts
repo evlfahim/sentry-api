@@ -621,3 +621,33 @@ export function activate(context: vscode.ExtensionContext) {
     watchFilesCmd
   );
 }
+
+/**
+ * Deactivates the extension and cleans up resources.
+ * Step 13: Ensures proper cleanup when the extension is deactivated,
+ * preventing resource leaks and conflicts with other extensions.
+ */
+export function deactivate() {
+  console.log("Sentry API extension is now deactivated");
+
+  // Clean up webview manager
+  if (webviewManager) {
+    webviewManager.panel.dispose();
+    webviewManager = undefined;
+  }
+
+  // Clean up history panel
+  if (historyPanel) {
+    historyPanel.dispose();
+    historyPanel = undefined;
+  }
+
+  // Clean up diff panel
+  if (diffPanel) {
+    diffPanel.dispose();
+    diffPanel = undefined;
+  }
+
+  // Clear the in-memory history store
+  historyStore.entries.length = 0;
+}
