@@ -1,19 +1,14 @@
 import { useState, useEffect } from "react";
-import type { RequestFile } from "@sentry-api/core";
+import type { HttpMethod, RequestOptions } from "@sentry-api/core/browser";
 
 interface RequestEditorProps {
-  selectedRequest: RequestFile | undefined;
-  onSend: (request: {
-    method: string;
-    url: string;
-    headers?: Record<string, string>;
-    query?: Record<string, string>;
-    body?: unknown;
-  }) => Promise<void>;
+  /** Request to load into the editor (from a collection or a history replay). */
+  selectedRequest: RequestOptions | undefined;
+  onSend: (request: RequestOptions) => Promise<void>;
   loading: boolean;
 }
 
-const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
+const METHODS: readonly HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 const TABS = ["Headers", "Query", "Body", "Auth"] as const;
 type Tab = (typeof TABS)[number];
 
@@ -22,7 +17,7 @@ export default function RequestEditor({
   onSend,
   loading,
 }: RequestEditorProps) {
-  const [method, setMethod] = useState("GET");
+  const [method, setMethod] = useState<HttpMethod>("GET");
   const [url, setUrl] = useState("");
   const [headers, setHeaders] = useState<string>("");
   const [queryParams, setQueryParams] = useState<string>("");
@@ -105,7 +100,7 @@ export default function RequestEditor({
 
     await onSend({
       method,
-      url,
+      url: url.trim(),
       headers: Object.keys(headersMap).length > 0 ? headersMap : undefined,
       query: Object.keys(queryMap).length > 0 ? queryMap : undefined,
       body: bodyValue,
@@ -118,7 +113,7 @@ export default function RequestEditor({
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
         <select
           value={method}
-          onChange={(e) => setMethod(e.target.value)}
+          onChange={(e) => setMethod(e.target.value as HttpMethod)}
           className="px-2 py-1.5 text-xs font-mono font-bold rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           {METHODS.map((m) => (

@@ -1,135 +1,171 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
-import type { RequestFile, HistoryEntry, Response, ErrorResponse } from "@sentry-api/core";
-import { sendRequest, createHistoryStore, addToHistory, listCollections } from "@sentry-api/core";
+import type { HistoryEntry, RequestFile, RequestOptions, Response } from "@sentry-api/core/browser";
+import {
+  addToHistory,
+  clearHistory,
+  createHistoryStore,
+  getHistoryEntry,
+  isErrorResponse,
+  replayEntry,
+} from "@sentry-api/core/browser";
 import { open } from "@tauri-apps/plugin-dialog";
+import {
+  errorMessage,
+  loadCollections,
+  loadHistory,
+  saveHistory,
+  sendHttpRequest,
+  type LoadedCollection,
+} from "./lib/api";
 
-export interface AppState {
-  darkMode: boolean;
-  selectedRequestId: string | null;
-  selectedCollectionId: string | null;
-  requests: RequestFile[];
-  history: HistoryEntry[];
-  response: { status: number; statusText: string; headers: Record<string, string>; data: unknown; duration: number } | null;
-  loading: boolean;
-  error: string | null;
-  collections: { id: string; name: string; requests: RequestFile[] }[];
-  basePath: string | null;
+function toRequestOptions(request: RequestFile): RequestOptions {
+  return {
+    method: request.method,
+    url: request.url,
+    headers: request.headers,
+    query: request.query,
+    body: request.body,
+  };
 }
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [collections, setCollections] = useState<LoadedCollection[]>([]);
+  const [basePath, setBasePath] = useState<string | null>(null);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
-  const [requests, setRequests] = useState<RequestFile[]>([]);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [response, setResponse] = useState<AppState["response"]>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [editorRequest, setEditorRequest] = useState<RequestOptions | undefined>(undefined);
+  const [response, setResponse] = useState<Response | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [collections, setCollections] = useState<AppState["collections"]>([]);
-  const [basePath, setBasePath] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Persist history store across renders (not serialised, lives in memory)
+  // The core history store is mutated in place; `history` mirrors its entries for rendering.
   const historyStoreRef = useRef(createHistoryStore());
 
-  /** Load collections from a folder on disk via the core library. */
-  const loadCollections = useCallback((folderPath: string) => {
+  const persistHistory = useCallback(() => {
+    saveHistory(historyStoreRef.current).catch((err) => {
+      setNotice(`Could not save history: ${errorMessage(err)}`);
+    });
+  }, []);
+
+  // Load persisted history once on startup.
+  useEffect(() => {
+    let cancelled = false;
+    loadHistory()
+      .then((stored) => {
+        if (cancelled) return;
+        const store = historyStoreRef.current;
+        // Keep anything sent before loading finished, newest first.
+        const known = new Set(store.entries.map((e) => e.id));
+        store.entries = [
+          ...store.entries,
+          ...stored.entries.filter((e) => !known.has(e.id)),
+        ].slice(0, store.maxEntries);
+        setHistory([...store.entries]);
+      })
+      .catch((err) => {
+        if (!cancelled) setNotice(`Could not load history: ${errorMessage(err)}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Load collections from a folder on disk via the Tauri backend. */
+  const openCollections = useCallback(async (folderPath: string) => {
     try {
-      const loaded = listCollections(folderPath);
+      const loaded = await loadCollections(folderPath);
       setCollections(loaded);
       setBasePath(folderPath);
-      // Clear selection when switching folders
-      setSelectedCollectionId(null);
+      setSelectedCollectionId(loaded.length === 1 ? loaded[0].id : null);
       setSelectedRequestId(null);
-      setRequests([]);
-      setResponse(null);
-      setError(null);
+      setNotice(loaded.length === 0 ? "No collections found in this folder." : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setNotice(`Could not open folder: ${errorMessage(err)}`);
     }
   }, []);
 
-  /** Open a folder picker (Tauri) and load collections from the chosen path. */
+  /** Open a folder picker and load collections from the chosen path. */
   const handleOpenFolder = useCallback(async () => {
     try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-      });
+      const selected = await open({ directory: true, multiple: false });
       if (typeof selected === "string") {
-        loadCollections(selected);
+        await openCollections(selected);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setNotice(`Could not open folder: ${errorMessage(err)}`);
     }
-  }, [loadCollections]);
+  }, [openCollections]);
 
-  /** Send a request through the core library and update response + history. */
-  const handleSend = useCallback(async (request: {
-    method: string;
-    url: string;
-    headers?: Record<string, string>;
-    query?: Record<string, string>;
-    body?: unknown;
-  }) => {
-    setLoading(true);
-    setError(null);
-    setResponse(null);
+  /** Send a request, show the response and record it in history. */
+  const handleSend = useCallback(
+    async (request: RequestOptions) => {
+      setLoading(true);
+      setError(null);
+      setResponse(null);
+      setSelectedHistoryId(null);
 
-    try {
-      const result = await sendRequest({
-        method: request.method as RequestFile["method"],
-        url: request.url,
-        headers: request.headers,
-        query: request.query,
-        body: request.body,
-      });
-
-      if ("error" in result) {
-        // Core returned an ErrorResponse
-        const errResp = result as ErrorResponse;
-        setError(errResp.error);
-        setResponse(null);
-      } else {
-        // Core returned a successful Response
-        const resp = result as Response;
-        setResponse({
-          status: resp.status,
-          statusText: resp.statusText,
-          headers: resp.headers,
-          data: resp.data,
-          duration: resp.duration,
-        });
-
-        // Persist to history
-        const entry = addToHistory(
-          historyStoreRef.current,
-          {
-            method: request.method as RequestFile["method"],
-            url: request.url,
-            headers: request.headers,
-            query: request.query,
-            body: request.body,
-          },
-          resp
-        );
+      try {
+        const result = await sendHttpRequest(request);
+        if (isErrorResponse(result)) {
+          setError(result.error);
+          return;
+        }
+        setResponse(result);
+        const entry = addToHistory(historyStoreRef.current, request, result);
         setHistory([...historyStoreRef.current.entries]);
+        setSelectedHistoryId(entry.id);
+        persistHistory();
+      } catch (err) {
+        setError(errorMessage(err));
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [historyStoreRef]);
+    },
+    [persistHistory]
+  );
 
-  /** Select a request from the sidebar and populate the editor. */
-  const handleSelectRequest = useCallback((id: string) => {
-    setSelectedRequestId(id);
-    setResponse(null);
+  /** Select a request from a collection and load it into the editor. */
+  const handleSelectRequest = useCallback(
+    (collectionId: string, requestId: string) => {
+      const request = collections
+        .find((c) => c.id === collectionId)
+        ?.requests.find((r) => r.id === requestId);
+      if (!request) return;
+      setSelectedRequestId(requestId);
+      setSelectedHistoryId(null);
+      setEditorRequest(toRequestOptions(request));
+      setResponse(null);
+      setError(null);
+    },
+    [collections]
+  );
+
+  /** Replay a history entry: load its request and show its recorded response. */
+  const handleSelectHistory = useCallback((id: string) => {
+    const store = historyStoreRef.current;
+    const request = replayEntry(store, id);
+    const entry = getHistoryEntry(store, id);
+    if (!request || !entry) return;
+    setSelectedHistoryId(id);
+    setSelectedRequestId(null);
+    setEditorRequest(request);
+    setResponse(entry.response);
     setError(null);
   }, []);
+
+  const handleClearHistory = useCallback(() => {
+    clearHistory(historyStoreRef.current);
+    setHistory([]);
+    setSelectedHistoryId(null);
+    persistHistory();
+  }, [persistHistory]);
 
   return (
     <div className={darkMode ? "dark" : ""}>
@@ -150,7 +186,6 @@ export default function App() {
 
         {/* Main layout */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
           <Sidebar
             collections={collections}
             selectedCollectionId={selectedCollectionId}
@@ -158,20 +193,18 @@ export default function App() {
             onSelectCollection={setSelectedCollectionId}
             onSelectRequest={handleSelectRequest}
             onOpenFolder={handleOpenFolder}
+            history={history}
+            selectedHistoryId={selectedHistoryId}
+            onSelectHistory={handleSelectHistory}
+            onClearHistory={handleClearHistory}
           />
 
-          {/* Request Editor */}
           <RequestEditor
-            selectedRequest={
-              selectedRequestId
-                ? requests.find((r) => r.id === selectedRequestId)
-                : undefined
-            }
+            selectedRequest={editorRequest}
             onSend={handleSend}
             loading={loading}
           />
 
-          {/* Response Viewer */}
           <ResponseViewer
             response={response}
             loading={loading}
@@ -180,8 +213,16 @@ export default function App() {
         </div>
 
         {/* Bottom bar */}
-        <footer className="h-6 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center px-3 text-xs text-gray-500 dark:text-gray-400 shrink-0">
-          <span>{collections.length} collections · {history.length} history entries</span>
+        <footer className="h-6 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3 px-3 text-xs text-gray-500 dark:text-gray-400 shrink-0">
+          <span>
+            {collections.length} collections · {history.length} history entries
+          </span>
+          {basePath && <span className="truncate font-mono" title={basePath}>{basePath}</span>}
+          {notice && (
+            <span className="ml-auto truncate text-amber-600 dark:text-amber-400" title={notice}>
+              {notice}
+            </span>
+          )}
         </footer>
       </div>
     </div>

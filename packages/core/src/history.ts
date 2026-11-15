@@ -1,4 +1,4 @@
-import { Response, RequestOptions } from "./http-client";
+import type { Response, RequestOptions } from "./types";
 
 export interface HistoryEntry {
   id: string;

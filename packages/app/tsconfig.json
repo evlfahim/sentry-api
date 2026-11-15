@@ -17,7 +17,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@sentry-api/core": ["../core/src/index.ts"]
+      "@sentry-api/core/browser": ["../core/src/browser.ts"]
     }
   },
   "include": ["src/**/*"],

@@ -5,9 +5,14 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      // Browser-safe core entry, compiled from source (no core build needed).
+      {
+        find: /^@sentry-api\/core\/browser$/,
+        replacement: path.resolve(__dirname, "../core/src/browser.ts"),
+      },
+      { find: /^@\//, replacement: path.resolve(__dirname, "./src") + "/" },
+    ],
   },
   // Keep Rust compiler output visible when run via `tauri dev`
   clearScreen: false,

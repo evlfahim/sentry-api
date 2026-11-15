@@ -1,33 +1,8 @@
 import fs from "fs";
 import path from "path";
+import type { RequestFile, Collection } from "./types";
 
-export interface RequestFile {
-  id: string;
-  name: string;
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
-  url: string;
-  headers?: Record<string, string>;
-  query?: Record<string, string>;
-  body?: unknown;
-  description?: string;
-  updated: string; // ISO timestamp
-}
-
-export interface Collection {
-  id: string;
-  name: string;
-  description?: string;
-  requests: RequestFile[];
-  updated: string; // ISO timestamp
-}
-
-export interface CollectionFolder {
-  id: string;
-  name: string;
-  description?: string;
-  children: CollectionFolder | RequestFile[];
-  updated: string;
-}
+export type { RequestFile, Collection, CollectionFolder } from "./types";
 
 /**
  * Reads a collection folder from disk.

@@ -4,30 +4,14 @@ import axios, {
   AxiosError,
   AxiosInstance,
 } from "axios";
+import type { RequestOptions, Response, ErrorResponse } from "./types";
 
-export interface RequestOptions {
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
-  url: string;
-  headers?: Record<string, string>;
-  query?: Record<string, string>;
-  body?: unknown;
-  timeout?: number;
-}
-
-export interface Response {
-  status: number;
-  statusText: string;
-  headers: Record<string, string>;
-  data: unknown;
-  duration: number;
-  request: RequestOptions;
-}
-
-export interface ErrorResponse {
-  error: string;
-  request?: RequestOptions;
-  details?: unknown;
-}
+export type {
+  HttpMethod,
+  RequestOptions,
+  Response,
+  ErrorResponse,
+} from "./types";
 
 /**
  * Sends an HTTP request and returns the response.

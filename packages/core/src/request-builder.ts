@@ -1,5 +1,5 @@
-import { RequestOptions } from "./http-client";
-import { interpolate, interpolateObject } from "./environment";
+import type { RequestOptions } from "./types";
+import { interpolate, interpolateObject } from "./env-core";
 
 export interface RequestTemplate {
   id: string;
