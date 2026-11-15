@@ -1,0 +1,21 @@
+{
+  "name": "sentry-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A git-native API client with file-based collections, response diffing, and a modular core designed for instant VS Code plugin conversion.",
+  "workspaces": [
+    "packages/core",
+    "packages/app",
+    "packages/vscode"
+  ],
+  "scripts": {
+    "test": "npm run test --workspace=packages/core",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,json,css}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.0"
+  }
+}

@@ -28,7 +28,7 @@ TypeScript, Node.js, Tauri (desktop UI), VS Code Extension API, Vitest, Tailwind
 Core logic resides in `packages/core` as a pure TypeScript library; the VS Code plugin in `packages/vscode` consumes this library, mapping VS Code APIs (workspace, window) to the core interface and rendering the UI via a webview.
 
 ## Steps
-- [ ] 1. Initialize monorepo with `packages/core`, `packages/app`, and `packages/vscode`; configure Vitest and verify core test suite runs.
+- [x] 1. Initialize monorepo with `packages/core`, `packages/app`, and `packages/vscode`; configure Vitest and verify core test suite runs.
 - [ ] 2. Implement HTTP client, environment parser, and request builder in core; write unit tests for URL interpolation and header handling.
 - [ ] 3. Add file system operations to core for reading/writing collections and one-file-per-request structure; test persistence and migration.
 - [ ] 4. Implement history management and response diffing logic in core; write tests for JSON diff algorithms and history replay.
