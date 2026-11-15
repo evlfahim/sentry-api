@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
 import EnvironmentSwitcher from "./components/EnvironmentSwitcher";
+import ToastContainer from "./components/Toast";
 import type { HistoryEntry, RequestFile, RequestOptions, Response } from "@sentry-api/core/browser";
 import {
   addToHistory,
@@ -23,6 +24,12 @@ import {
   watchCollections,
 } from "./lib/api";
 
+interface Toast {
+  id: string;
+  message: string;
+  type: "info" | "error" | "success" | "warning";
+}
+
 function toRequestOptions(request: RequestFile): RequestOptions {
   return {
     method: request.method,
@@ -31,6 +38,21 @@ function toRequestOptions(request: RequestFile): RequestOptions {
     query: request.query,
     body: request.body,
   };
+}
+
+let toastIdCounter = 0;
+
+function addToast(
+  setToasts: React.Dispatch<React.SetStateAction<Toast[]>>,
+  message: string,
+  type: Toast["type"] = "info"
+) {
+  const id = `toast-${++toastIdCounter}-${Date.now()}`;
+  setToasts((prev) => [...prev, { id, message, type }]);
+  // Auto-dismiss after 4 seconds
+  setTimeout(() => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, 4000);
 }
 
 export default function App() {
@@ -44,13 +66,18 @@ export default function App() {
   const [response, setResponse] = useState<Response | null>(null);
   const [previousResponse, setPreviousResponse] = useState<Response | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
 
   // Environment state
   const [activeEnv, setActiveEnv] = useState<string | null>(null);
   const [envValues, setEnvValues] = useState<Record<string, string>>({});
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // The core history store is mutated in place; `history` mirrors its entries for rendering.
   const historyStoreRef = useRef(createHistoryStore());
@@ -60,7 +87,7 @@ export default function App() {
 
   const persistHistory = useCallback(() => {
     saveHistory(historyStoreRef.current).catch((err) => {
-      setNotice(`Could not save history: ${errorMessage(err)}`);
+      addToast(setToasts, `Could not save history: ${errorMessage(err)}`, "error");
     });
   }, []);
 
@@ -80,7 +107,7 @@ export default function App() {
         setHistory([...store.entries]);
       })
       .catch((err) => {
-        if (!cancelled) setNotice(`Could not load history: ${errorMessage(err)}`);
+        if (!cancelled) addToast(setToasts, `Could not load history: ${errorMessage(err)}`, "warning");
       });
     return () => {
       cancelled = true;
@@ -95,24 +122,27 @@ export default function App() {
       setBasePath(folderPath);
       setSelectedCollectionId(loaded.length === 1 ? loaded[0].id : null);
       setSelectedRequestId(null);
-      setNotice(loaded.length === 0 ? "No collections found in this folder." : null);
+      if (loaded.length === 0) {
+        addToast(setToasts, "No collections found in this folder.", "warning");
+      } else {
+        addToast(setToasts, `Loaded ${loaded.length} collection(s)`, "success");
+      }
 
       // Start watching for external file changes
       if (watchCleanupRef.current) {
         watchCleanupRef.current();
       }
       watchCleanupRef.current = watchCollections(folderPath, (kind, changedPaths) => {
-        setNotice(`File changed: ${changedPaths.join(", ")} (${kind})`);
+        addToast(setToasts, `File changed: ${changedPaths.join(", ")} (${kind})`, "info");
         // Reload collections to pick up changes
         loadCollections(folderPath)
           .then((updated) => {
             setCollections(updated);
-            setNotice(null);
           })
           .catch(() => {});
       });
     } catch (err) {
-      setNotice(`Could not open folder: ${errorMessage(err)}`);
+      addToast(setToasts, `Could not open folder: ${errorMessage(err)}`, "error");
     }
   }, []);
 
@@ -124,7 +154,7 @@ export default function App() {
         await openCollections(selected);
       }
     } catch (err) {
-      setNotice(`Could not open folder: ${errorMessage(err)}`);
+      addToast(setToasts, `Could not open folder: ${errorMessage(err)}`, "error");
     }
   }, [openCollections]);
 
@@ -132,14 +162,13 @@ export default function App() {
   const handleSend = useCallback(
     async (request: RequestOptions) => {
       setLoading(true);
-      setError(null);
       setResponse(null);
       setSelectedHistoryId(null);
 
       try {
         const result = await sendHttpRequest(request);
         if (isErrorResponse(result)) {
-          setError(result.error);
+          addToast(setToasts, result.error, "error");
           return;
         }
         // Store previous response for diffing
@@ -149,13 +178,14 @@ export default function App() {
         setHistory([...historyStoreRef.current.entries]);
         setSelectedHistoryId(entry.id);
         persistHistory();
+        addToast(setToasts, `Response: ${result.status} ${result.statusText} (${result.duration}ms)`, "success");
       } catch (err) {
-        setError(errorMessage(err));
+        addToast(setToasts, errorMessage(err), "error");
       } finally {
         setLoading(false);
       }
     },
-    [persistHistory, response]
+    [persistHistory, response, setToasts]
   );
 
   /** Select a request from a collection and load it into the editor. */
@@ -170,7 +200,6 @@ export default function App() {
       setEditorRequest(toRequestOptions(request));
       setResponse(null);
       setPreviousResponse(null);
-      setError(null);
     },
     [collections]
   );
@@ -186,7 +215,6 @@ export default function App() {
     setEditorRequest(request);
     setResponse(entry.response);
     setPreviousResponse(null);
-    setError(null);
   }, []);
 
   const handleClearHistory = useCallback(() => {
@@ -194,12 +222,16 @@ export default function App() {
     setHistory([]);
     setSelectedHistoryId(null);
     persistHistory();
-  }, [persistHistory]);
+    addToast(setToasts, "History cleared", "info");
+  }, [persistHistory, setToasts]);
 
   const handleEnvSelect = useCallback((name: string, values: Record<string, string>) => {
     setActiveEnv(name || null);
     setEnvValues(values);
-  }, []);
+    if (name) {
+      addToast(setToasts, `Environment "${name}" loaded (${Object.keys(values).length} variables)`, "info");
+    }
+  }, [setToasts]);
 
   // Cleanup file watcher on unmount
   useEffect(() => {
@@ -229,6 +261,7 @@ export default function App() {
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+              title="Toggle dark mode"
             >
               {darkMode ? "☀️ Light" : "🌙 Dark"}
             </button>
@@ -259,7 +292,7 @@ export default function App() {
           <ResponseViewer
             response={response}
             loading={loading}
-            error={error}
+            error={null}
             previousResponse={previousResponse}
           />
         </div>
@@ -270,12 +303,13 @@ export default function App() {
             {collections.length} collections · {history.length} history entries
           </span>
           {basePath && <span className="truncate font-mono" title={basePath}>{basePath}</span>}
-          {notice && (
-            <span className="ml-auto truncate text-amber-600 dark:text-amber-400" title={notice}>
-              {notice}
-            </span>
-          )}
+          <span className="ml-auto text-gray-400 dark:text-gray-500">
+            Ctrl+Enter to send
+          </span>
         </footer>
+
+        {/* Toast notifications */}
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { HttpMethod, RequestOptions } from "@sentry-api/core/browser";
 import { exportCurl } from "../lib/api";
 
@@ -20,13 +20,18 @@ export default function RequestEditor({
 }: RequestEditorProps) {
   const [method, setMethod] = useState<HttpMethod>("GET");
   const [url, setUrl] = useState("");
+  const headersRef = useRef("");
   const [headers, setHeaders] = useState<string>("");
+  const queryParamsRef = useRef("");
   const [queryParams, setQueryParams] = useState<string>("");
+  const bodyRef = useRef("");
   const [body, setBody] = useState<string>("");
   const [bodyType, setBodyType] = useState<"json" | "raw" | "form">("json");
   const [activeTab, setActiveTab] = useState<Tab>("Headers");
   const [curlExport, setCurlExport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [curlError, setCurlError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   // Load selected request into editor
   useEffect(() => {
@@ -62,105 +67,105 @@ export default function RequestEditor({
       setBody("");
     }
     setCurlExport(null);
+    setCurlError(null);
     setCopied(false);
+    setSendError(null);
   }, [selectedRequest]);
 
-  const handleSend = async () => {
-    // Parse headers
+  // Keep refs in sync with state for the send/export functions
+  useEffect(() => { headersRef.current = headers; }, [headers]);
+  useEffect(() => { queryParamsRef.current = queryParams; }, [queryParams]);
+  useEffect(() => { bodyRef.current = body; }, [body]);
+
+  const parseHeaders = useCallback((text: string): Record<string, string> => {
     const headersMap: Record<string, string> = {};
-    if (headers.trim()) {
-      for (const line of headers.trim().split("\n")) {
+    if (text.trim()) {
+      for (const line of text.trim().split("\n")) {
         const idx = line.indexOf(":");
         if (idx > 0) {
           headersMap[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
         }
       }
     }
+    return headersMap;
+  }, []);
 
-    // Parse query params
+  const parseQueryParams = useCallback((text: string): Record<string, string> => {
     const queryMap: Record<string, string> = {};
-    if (queryParams.trim()) {
-      for (const line of queryParams.trim().split("\n")) {
+    if (text.trim()) {
+      for (const line of text.trim().split("\n")) {
         const idx = line.indexOf("=");
         if (idx > 0) {
           queryMap[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
         }
       }
     }
+    return queryMap;
+  }, []);
 
-    // Parse body
-    let bodyValue: unknown = undefined;
-    if (body.trim()) {
-      if (bodyType === "json") {
-        try {
-          bodyValue = JSON.parse(body);
-        } catch {
-          // Keep as string if not valid JSON
-          bodyValue = body;
-        }
-      } else {
-        bodyValue = body;
+  const parseBody = useCallback((text: string, type: string): unknown => {
+    if (!text.trim()) return undefined;
+    if (type === "json") {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text;
       }
     }
+    return text;
+  }, []);
 
-    await onSend({
+  const buildRequest = useCallback((): RequestOptions => {
+    return {
       method,
       url: url.trim(),
-      headers: Object.keys(headersMap).length > 0 ? headersMap : undefined,
-      query: Object.keys(queryMap).length > 0 ? queryMap : undefined,
-      body: bodyValue,
-    });
+      headers: Object.keys(parseHeaders(headersRef.current)).length > 0 ? parseHeaders(headersRef.current) : undefined,
+      query: Object.keys(parseQueryParams(queryParamsRef.current)).length > 0 ? parseQueryParams(queryParamsRef.current) : undefined,
+      body: parseBody(bodyRef.current, bodyType),
+    };
+  }, [method, url, bodyType, parseHeaders, parseQueryParams, parseBody]);
+
+  const handleSend = async () => {
+    setSendError(null);
+    const request = buildRequest();
+    if (!request.url) {
+      setSendError("URL is required");
+      return;
+    }
+    try {
+      await onSend(request);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSendError(msg);
+    }
   };
 
+  // Keyboard shortcut: Ctrl+Enter (or Cmd+Enter on Mac) to send
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleSend();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleSend]);
+
   const handleExportCurl = async () => {
-    // Parse headers
-    const headersMap: Record<string, string> = {};
-    if (headers.trim()) {
-      for (const line of headers.trim().split("\n")) {
-        const idx = line.indexOf(":");
-        if (idx > 0) {
-          headersMap[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
-        }
-      }
+    setCurlError(null);
+    setCurlExport(null);
+    const request = buildRequest();
+    if (!request.url) {
+      setCurlError("URL is required");
+      return;
     }
-
-    // Parse query params
-    const queryMap: Record<string, string> = {};
-    if (queryParams.trim()) {
-      for (const line of queryParams.trim().split("\n")) {
-        const idx = line.indexOf("=");
-        if (idx > 0) {
-          queryMap[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
-        }
-      }
-    }
-
-    // Parse body
-    let bodyValue: unknown = undefined;
-    if (body.trim()) {
-      if (bodyType === "json") {
-        try {
-          bodyValue = JSON.parse(body);
-        } catch {
-          bodyValue = body;
-        }
-      } else {
-        bodyValue = body;
-      }
-    }
-
     try {
-      const curl = await exportCurl({
-        method,
-        url: url.trim(),
-        headers: Object.keys(headersMap).length > 0 ? headersMap : undefined,
-        query: Object.keys(queryMap).length > 0 ? queryMap : undefined,
-        body: bodyValue,
-      });
+      const curl = await exportCurl(request);
       setCurlExport(curl);
       setCopied(false);
-    } catch {
-      setCurlExport("Failed to generate cURL command");
+    } catch (err) {
+      setCurlError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -209,11 +214,32 @@ export default function RequestEditor({
         <button
           onClick={handleSend}
           disabled={loading || !url}
-          className="px-4 py-1.5 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          className="px-4 py-1.5 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+          title="Send request (Ctrl+Enter)"
         >
-          {loading ? "⏳ Sending..." : "Send"}
+          {loading ? (
+            <>
+              <span className="spinner" />
+              Sending...
+            </>
+          ) : (
+            "Send"
+          )}
         </button>
       </div>
+
+      {/* Send error banner */}
+      {sendError && (
+        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 flex items-center justify-between">
+          <span className="text-xs text-red-600 dark:text-red-400 font-mono">{sendError}</span>
+          <button
+            onClick={() => setSendError(null)}
+            className="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-300"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
@@ -340,6 +366,21 @@ export default function RequestEditor({
           <pre className="text-xs font-mono whitespace-pre-wrap break-all p-4 max-h-40 overflow-y-auto">
             {curlExport}
           </pre>
+        </div>
+      )}
+      {curlError && (
+        <div className="border-t border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-2">
+          <span className="text-xs text-red-600 dark:text-red-400 font-mono">{curlError}</span>
+        </div>
+      )}
+
+      {/* Loading overlay */}
+      {loading && (
+        <div className="absolute inset-0 bg-black/10 dark:bg-black/30 flex items-center justify-center z-10">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 flex flex-col items-center gap-3">
+            <div className="spinner" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">Sending request...</span>
+          </div>
         </div>
       )}
     </div>

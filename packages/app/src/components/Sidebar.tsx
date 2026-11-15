@@ -23,6 +23,12 @@ function methodColor(method: string): string {
       return "text-blue-600 dark:text-blue-400";
     case "DELETE":
       return "text-red-600 dark:text-red-400";
+    case "PATCH":
+      return "text-purple-600 dark:text-purple-400";
+    case "HEAD":
+      return "text-cyan-600 dark:text-cyan-400";
+    case "OPTIONS":
+      return "text-pink-600 dark:text-pink-400";
     default:
       return "text-gray-500 dark:text-gray-500";
   }
@@ -37,6 +43,23 @@ function statusColor(status: number): string {
 function formatTime(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString();
+}
+
+function formatRelativeTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString();
 }
 
 export default function Sidebar({
@@ -70,9 +93,9 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto py-1">
         {collections.length === 0 ? (
           <div className="px-3 py-4 text-xs text-gray-400 dark:text-gray-500 text-center">
-            No collections yet.
-            <br />
-            Open a folder to get started.
+            <div className="text-2xl mb-2">📁</div>
+            <p className="mb-1">No collections yet.</p>
+            <p>Open a folder to get started.</p>
           </div>
         ) : (
           collections.map((collection) => (
@@ -86,33 +109,42 @@ export default function Sidebar({
                 }
                 className="w-full text-left px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
               >
-                <span className="text-gray-400">
+                <span className="text-gray-400 shrink-0">
                   {selectedCollectionId === collection.id ? "▾" : "▸"}
                 </span>
                 <span className="truncate">{collection.name}</span>
+                <span className="ml-auto text-[10px] text-gray-400">
+                  {collection.requests.length}
+                </span>
               </button>
 
               {/* Requests list */}
               {selectedCollectionId === collection.id && (
                 <div className="pl-4">
-                  {collection.requests.map((req) => (
-                    <button
-                      key={req.id}
-                      onClick={() => onSelectRequest(collection.id, req.id)}
-                      className={`w-full text-left px-3 py-1 text-xs flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition ${
-                        selectedRequestId === req.id
-                          ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300"
-                          : "text-gray-600 dark:text-gray-400"
-                      }`}
-                    >
-                      <span
-                        className={`w-12 text-right font-mono text-[10px] px-1 rounded ${methodColor(req.method)}`}
+                  {collection.requests.length === 0 ? (
+                    <div className="px-3 py-1 text-[10px] text-gray-400 italic">
+                      No requests
+                    </div>
+                  ) : (
+                    collection.requests.map((req) => (
+                      <button
+                        key={req.id}
+                        onClick={() => onSelectRequest(collection.id, req.id)}
+                        className={`w-full text-left px-3 py-1 text-xs flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition ${
+                          selectedRequestId === req.id
+                            ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300"
+                            : "text-gray-600 dark:text-gray-400"
+                        }`}
                       >
-                        {req.method}
-                      </span>
-                      <span className="truncate">{req.name}</span>
-                    </button>
-                  ))}
+                        <span
+                          className={`w-12 shrink-0 text-right font-mono text-[10px] px-1 rounded ${methodColor(req.method)}`}
+                        >
+                          {req.method}
+                        </span>
+                        <span className="truncate">{req.name}</span>
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -139,7 +171,8 @@ export default function Sidebar({
         <div className="flex-1 overflow-y-auto pb-1">
           {history.length === 0 ? (
             <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 text-center">
-              Sent requests appear here.
+              <div className="text-lg mb-1">🕐</div>
+              <p>Sent requests appear here.</p>
             </div>
           ) : (
             history.map((entry) => (
@@ -147,7 +180,7 @@ export default function Sidebar({
                 key={entry.id}
                 onClick={() => onSelectHistory(entry.id)}
                 title={`${entry.request.method} ${entry.request.url}`}
-                className={`w-full text-left px-3 py-1 text-xs flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition ${
+                className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition ${
                   selectedHistoryId === entry.id
                     ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300"
                     : "text-gray-600 dark:text-gray-400"
@@ -160,7 +193,7 @@ export default function Sidebar({
                 <span className={`shrink-0 font-mono text-[10px] ${statusColor(entry.response.status)}`}>
                   {entry.response.status}
                 </span>
-                <span className="shrink-0 text-[10px] text-gray-400">{formatTime(entry.timestamp)}</span>
+                <span className="shrink-0 text-[10px] text-gray-400">{formatRelativeTime(entry.timestamp)}</span>
               </button>
             ))
           )}
@@ -171,9 +204,10 @@ export default function Sidebar({
       <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-2">
         <button
           onClick={onOpenFolder}
-          className="w-full text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-left"
+          className="w-full text-xs px-2 py-1.5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-left flex items-center gap-2"
         >
-          📂 Open Folder
+          <span>📂</span>
+          Open Folder
         </button>
       </div>
     </aside>

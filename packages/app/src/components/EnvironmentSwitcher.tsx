@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { listEnvFiles, readEnvFile } from "../lib/api";
 import type { Environment } from "@sentry-api/core/browser";
 
@@ -90,9 +90,9 @@ export default function EnvironmentSwitcher({
   }, [onEnvSelect]);
 
   // Load env files when basePath changes
-  useState(() => {
+  useEffect(() => {
     loadEnvFiles();
-  });
+  }, [basePath, loadEnvFiles]);
 
   if (!basePath) {
     return null;

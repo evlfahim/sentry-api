@@ -78,20 +78,23 @@ export default function ResponseViewer({
       {/* Response body */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="text-2xl mb-2">⏳</div>
-              <p className="text-sm text-gray-400 dark:text-gray-500">
-                Sending request...
-              </p>
-            </div>
+          <div className="p-4 space-y-3">
+            {/* Skeleton loading */}
+            <div className="skeleton h-4 w-24" />
+            <div className="skeleton h-40 w-full" />
+            <div className="skeleton h-4 w-32" />
+            <div className="skeleton h-4 w-full" />
+            <div className="skeleton h-4 w-20" />
           </div>
         ) : error ? (
           <div className="p-4">
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-red-600 dark:text-red-400 mb-2">
-                Error
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm">❌</span>
+                <h3 className="text-sm font-semibold text-red-600 dark:text-red-400">
+                  Request Failed
+                </h3>
+              </div>
               <p className="text-xs text-red-500 dark:text-red-300 font-mono break-all">
                 {error}
               </p>
@@ -122,7 +125,7 @@ export default function ResponseViewer({
             </div>
 
             {activeTab === "Body" && (
-              <pre className="text-xs font-mono whitespace-pre-wrap break-all bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <pre className="text-xs font-mono whitespace-pre-wrap break-all bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 max-h-[calc(100vh-12rem)] overflow-y-auto">
                 {formatResponseData(response.data)}
               </pre>
             )}
