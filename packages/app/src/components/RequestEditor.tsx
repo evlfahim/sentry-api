@@ -14,6 +14,8 @@ interface RequestEditorProps {
 }
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
+const TABS = ["Headers", "Query", "Body", "Auth"] as const;
+type Tab = (typeof TABS)[number];
 
 export default function RequestEditor({
   selectedRequest,
@@ -26,6 +28,7 @@ export default function RequestEditor({
   const [queryParams, setQueryParams] = useState<string>("");
   const [body, setBody] = useState<string>("");
   const [bodyType, setBodyType] = useState<"json" | "raw" | "form">("json");
+  const [activeTab, setActiveTab] = useState<Tab>("Headers");
 
   // Load selected request into editor
   useEffect(() => {
@@ -142,10 +145,15 @@ export default function RequestEditor({
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
-        {["Headers", "Query", "Body", "Auth"].map((tab) => (
+        {TABS.map((tab) => (
           <button
             key={tab}
-            className="px-4 py-2 text-xs font-medium border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-xs font-medium border-b-2 transition ${
+              activeTab === tab
+                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                : "border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            }`}
           >
             {tab}
           </button>
@@ -155,6 +163,7 @@ export default function RequestEditor({
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto">
         {/* Headers tab */}
+        {activeTab === "Headers" && (
         <div className="p-4">
           <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
             Headers
@@ -166,8 +175,10 @@ export default function RequestEditor({
             className="w-full h-32 px-3 py-2 text-xs font-mono rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
           />
         </div>
+        )}
 
         {/* Query tab */}
+        {activeTab === "Query" && (
         <div className="p-4">
           <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
             Query Parameters
@@ -179,8 +190,10 @@ export default function RequestEditor({
             className="w-full h-32 px-3 py-2 text-xs font-mono rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
           />
         </div>
+        )}
 
         {/* Body tab */}
+        {activeTab === "Body" && (
         <div className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -215,8 +228,10 @@ export default function RequestEditor({
             className="w-full h-48 px-3 py-2 text-xs font-mono rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
           />
         </div>
+        )}
 
         {/* Auth tab */}
+        {activeTab === "Auth" && (
         <div className="p-4">
           <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
             Authentication
@@ -233,6 +248,7 @@ export default function RequestEditor({
             className="w-full px-3 py-2 text-xs rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
+        )}
       </div>
     </div>
   );

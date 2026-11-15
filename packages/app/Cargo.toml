@@ -2,9 +2,11 @@
 name = "sentry-api"
 version = "0.1.0"
 description = "A git-native API client"
-authors = ["you"]
+authors = ["sentry-api contributors"]
 edition = "2021"
 
+# The Cargo crate lives at packages/app (next to tauri.conf.json); the Rust
+# sources are kept under src-tauri/src.
 [[bin]]
 name = "sentry-api"
 path = "src-tauri/src/main.rs"
@@ -19,6 +21,5 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

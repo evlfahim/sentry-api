@@ -1,4 +1,6 @@
 {
+  "identifier": "default-unused",
+  "description": "Unused: tauri-build reads capabilities from packages/app/capabilities (next to Cargo.toml).",
   "windows": ["main"],
-  "permissions": ["core:default", "shell:allow-open"]
+  "permissions": ["core:default"]
 }

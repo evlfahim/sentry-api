@@ -1,3 +1,8 @@
+import { useState } from "react";
+
+const TABS = ["Body", "Headers", "Preview"] as const;
+type Tab = (typeof TABS)[number];
+
 interface ResponseViewerProps {
   response: {
     status: number;
@@ -15,6 +20,8 @@ export default function ResponseViewer({
   loading,
   error,
 }: ResponseViewerProps) {
+  const [activeTab, setActiveTab] = useState<Tab>("Body");
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
       {/* Response header */}
@@ -73,11 +80,12 @@ export default function ResponseViewer({
           <div className="p-4">
             {/* Response tabs */}
             <div className="flex border-b border-gray-200 dark:border-gray-700 mb-3">
-              {["Body", "Headers", "Preview"].map((tab, i) => (
+              {TABS.map((tab) => (
                 <button
                   key={tab}
+                  onClick={() => setActiveTab(tab)}
                   className={`px-3 py-1.5 text-xs font-medium border-b-2 transition ${
-                    i === 0
+                    activeTab === tab
                       ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
                       : "border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   }`}
@@ -87,10 +95,35 @@ export default function ResponseViewer({
               ))}
             </div>
 
-            {/* Body tab */}
-            <pre className="text-xs font-mono whitespace-pre-wrap break-all bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              {formatResponseData(response.data)}
-            </pre>
+            {activeTab === "Body" && (
+              <pre className="text-xs font-mono whitespace-pre-wrap break-all bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                {formatResponseData(response.data)}
+              </pre>
+            )}
+
+            {activeTab === "Headers" && (
+              <table className="w-full text-xs font-mono bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <tbody>
+                  {Object.entries(response.headers).map(([key, value]) => (
+                    <tr key={key} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                      <td className="px-3 py-1.5 font-semibold text-gray-600 dark:text-gray-300 align-top whitespace-nowrap">
+                        {key}
+                      </td>
+                      <td className="px-3 py-1.5 break-all">{value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {activeTab === "Preview" && (
+              <iframe
+                title="Response preview"
+                sandbox=""
+                srcDoc={formatResponseData(response.data)}
+                className="w-full h-96 bg-white rounded-lg border border-gray-200 dark:border-gray-700"
+              />
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
